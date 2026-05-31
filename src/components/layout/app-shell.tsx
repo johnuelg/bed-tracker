@@ -167,7 +167,7 @@ const AppShellInner = () => {
                     {settingsOpen && !collapsed ? (
                       <SidebarMenuSub>
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild isActive={routeMatchedPath === "/settings"}>
+                          <SidebarMenuSubButton asChild isActive={location.pathname === "/settings"}>
                             <NavLink to="/settings" onClick={closeMobile}>
                               API Settings
                             </NavLink>
