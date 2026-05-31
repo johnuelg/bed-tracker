@@ -259,7 +259,7 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="min-w-0 pr-2">
             <h1 className="text-base font-bold sm:text-lg">Chat Assistant</h1>
-            <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1">
+            <p className="text-xs text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden sm:[-webkit-line-clamp:1]">
               Ask about occupied, vacant, or closed beds, room availability, occupancy rate, and the latest updates. Times shown are Saudi Arabia local time.
             </p>
           </div>
