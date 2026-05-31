@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LlmSettingsEditor } from "@/components/settings/llm-settings-editor";
 
 const SettingsPage = () => {
   return (
@@ -15,6 +16,8 @@ const SettingsPage = () => {
         </CardHeader>
         <CardContent />
       </Card>
+
+      <LlmSettingsEditor />
     </section>
   );
 };
