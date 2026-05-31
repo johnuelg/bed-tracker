@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     }
 
     const context = {
-      today_saudi: today,
+      today_saudi: latestDate,
       generated_at_saudi: formatSaudi(new Date().toISOString()),
       latest_data_date_saudi: latestDate,
       total_records_in_scope: allSubs.length,
