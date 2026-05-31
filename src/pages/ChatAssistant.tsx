@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { BedDouble, History, MessageSquarePlus, Send, Stethoscope, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
 import { getValidatedSupabaseEnv } from "@/integrations/supabase/env-validator";
 import { Button } from "@/components/ui/button";
@@ -356,9 +357,38 @@ const MessageBubble = ({ message }: { message: UIMessage }) => {
             <p className="whitespace-pre-wrap break-words">{text}</p>
           </div>
         ) : (
-          <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-table:my-2 prose-th:px-2 prose-td:px-2 dark:prose-invert">
+          <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-strong:text-foreground dark:prose-invert">
             {text ? (
-              <ReactMarkdown>{text}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ className, ...props }) => (
+                    <div className="my-3 w-full overflow-x-auto rounded-md border border-border bg-card">
+                      <table className={cn("w-full min-w-[560px] border-collapse text-sm", className)} {...props} />
+                    </div>
+                  ),
+                  thead: ({ className, ...props }) => (
+                    <thead className={cn("bg-muted/60", className)} {...props} />
+                  ),
+                  th: ({ className, ...props }) => (
+                    <th
+                      className={cn(
+                        "border-b border-border px-3 py-2 text-left text-xs font-semibold uppercase tracking-normal text-muted-foreground",
+                        className,
+                      )}
+                      {...props}
+                    />
+                  ),
+                  td: ({ className, ...props }) => (
+                    <td className={cn("border-b border-border/70 px-3 py-2 align-middle", className)} {...props} />
+                  ),
+                  tr: ({ className, ...props }) => (
+                    <tr className={cn("odd:bg-background even:bg-muted/20", className)} {...props} />
+                  ),
+                }}
+              >
+                {text}
+              </ReactMarkdown>
             ) : (
               <p className="text-sm text-muted-foreground">…</p>
             )}
