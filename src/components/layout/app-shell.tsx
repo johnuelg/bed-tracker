@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, BedDouble, ChevronDown, ClipboardList, FileBarChart, FileCog, History, LayoutDashboard, LogOut, MessageSquare, Settings2, Table as TableIcon, Users2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
@@ -111,6 +111,12 @@ const AppShellInner = () => {
     if (isMobile) setOpenMobile(false);
   };
 
+  const routeMatchedPath = useMemo(() => {
+    const allNavItems = [...topLevelNavItems, ...settingsSubNavItems].map((item) => item.to);
+    const sortedBySpecificity = allNavItems.sort((a, b) => b.length - a.length);
+    return sortedBySpecificity.find((path) => location.pathname === path || location.pathname.startsWith(`${path}/`)) ?? null;
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen w-full">
       <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -133,7 +139,7 @@ const AppShellInner = () => {
             <SidebarGroupContent>
               <SidebarMenu>
                 {visibleTopLevelItems.map((item) => {
-                  const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+                  const active = routeMatchedPath === item.to;
                   return (
                     <SidebarMenuItem key={item.to}>
                       <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
@@ -161,7 +167,7 @@ const AppShellInner = () => {
                     {settingsOpen && !collapsed ? (
                       <SidebarMenuSub>
                         {visibleSettingsItems.map((item) => {
-                          const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+                          const active = routeMatchedPath === item.to;
                           return (
                             <SidebarMenuSubItem key={item.to}>
                               <SidebarMenuSubButton asChild isActive={active}>
@@ -214,7 +220,6 @@ const AppShellInner = () => {
         </header>
 
         <motion.main
-          key={location.pathname}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.24, ease: "easeOut" }}
