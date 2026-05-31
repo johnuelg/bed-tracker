@@ -73,20 +73,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    const hydrateAuthState = async (nextSession: Session | null) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      try {
+        await loadProfileAndRoles(nextSession?.user ?? null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
-      void loadProfileAndRoles(nextSession?.user ?? null);
-      setLoading(false);
+      void hydrateAuthState(nextSession);
     });
 
     void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
-      setUser(data.session?.user ?? null);
-      void loadProfileAndRoles(data.session?.user ?? null);
-      setLoading(false);
+      void hydrateAuthState(data.session ?? null);
     });
 
     return () => subscription.unsubscribe();

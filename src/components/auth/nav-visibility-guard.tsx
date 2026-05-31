@@ -16,6 +16,7 @@ const defaultRoleVisibility: RoleMenuVisibility = {
   audit_log: true,
   bed_map: true,
   reports_analytics: true,
+  chat_assistant: true,
 };
 
 type NavVisibilityGuardProps = {
@@ -34,11 +35,16 @@ export const NavVisibilityGuard = ({ settingKey }: NavVisibilityGuardProps) => {
   }
 
   const primaryRole = getPrimaryRole(roles);
+
+  if (!primaryRole) {
+    return <Outlet />;
+  }
+
   const merged: RoleMenuVisibility = {
     ...defaultRoleVisibility,
-    ...((primaryRole && navVisibility?.[primaryRole]) || {}),
+    ...(navVisibility?.[primaryRole] || {}),
   };
-  const canAccess = primaryRole && merged[settingKey];
+  const canAccess = merged[settingKey];
 
   if (!canAccess) {
     return <Navigate to="/dashboard" replace />;
