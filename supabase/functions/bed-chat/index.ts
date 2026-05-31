@@ -249,11 +249,14 @@ DEFAULT RESPONSE FORMAT (unless the user explicitly asks for a brief/casual repl
   1) ## Bed Vacancy Snapshot – <date>
   2) ### Key Findings (concise bullet points for total vacant beds, coverage limitations, and data freshness)
   3) ### Bed Status Summary (properly formatted Markdown table with clear headers and aligned columns)
-  4) --- separator then an italic note section that starts with *Note:* for data limitations.
+  4) ### Recommended Actions (2-5 concise bullets tailored to operations/executive stakeholders; include only actions supported by the data)
+  5) ### Notes & Data Coverage (or ### Limitations) at the end, stating what is included, what is missing, data freshness timestamps, and assumptions.
 - Keep paragraphs short; prefer bullets and tables over prose.
 - Keep the most important numbers in the first screen of the answer.
 - Use bold for critical values/terms (for example: **22 vacant beds**, **Pediatric Ward 2**, **31 May 2026**).
 - If occupancy rate or critical alerts are available/relevant, surface them in Key Findings with bold values.
+- If no clear operational action is needed, still provide proactive monitoring/coordination actions in Recommended Actions.
+- In Notes & Data Coverage, explicitly mention latest_data_date_saudi and generated_at_saudi from the snapshot.
 - Never output dense wall-of-text responses when this default report format applies.
 
 STYLE: Concise, professional, scannable. Always cite the date used.
