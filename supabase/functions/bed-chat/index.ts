@@ -66,6 +66,31 @@ const normalizeLlmSettings = (value: unknown): LlmSettings => {
   };
 };
 
+const fetchAllBedSubmissions = async (supabase: ReturnType<typeof createClient>) => {
+  const pageSize = 1000;
+  let from = 0;
+  const allRows: Submission[] = [];
+
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from("bed_submissions")
+      .select("id,department_id,total_beds,occupied,closed,closure_reason,submitted_on,updated_at,created_at,custom_fields,calculated_fields")
+      .order("updated_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+
+    const rows = (data ?? []) as Submission[];
+    allRows.push(...rows);
+
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return allRows;
+};
+
 const buildLatestPerDeptDay = (rows: Submission[]) => {
   const map = new Map<string, Submission>();
   for (const r of rows) {
@@ -109,12 +134,9 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const [{ data: deptRows }, { data: subRows }, { data: llmSettingsRow }] = await Promise.all([
+    const [{ data: deptRows, error: deptError }, allSubs, { data: llmSettingsRow, error: llmSettingsError }] = await Promise.all([
       supabase.from("departments").select("id,name,is_active").eq("is_active", true),
-      supabase
-        .from("bed_submissions")
-        .select("id,department_id,total_beds,occupied,closed,closure_reason,submitted_on,updated_at,created_at,custom_fields,calculated_fields")
-        .order("updated_at", { ascending: false }),
+      fetchAllBedSubmissions(supabase),
       supabase
         .from("app_settings")
         .select("setting_value")
@@ -122,8 +144,10 @@ Deno.serve(async (req) => {
         .maybeSingle(),
     ]);
 
+    if (deptError) throw deptError;
+    if (llmSettingsError) throw llmSettingsError;
+
     const departments = (deptRows ?? []) as Department[];
-    const allSubs = (subRows ?? []) as Submission[];
     const latest = buildLatestPerDeptDay(allSubs);
     const deptName = (id: string) => departments.find((d) => d.id === id)?.name ?? "Unknown";
 
