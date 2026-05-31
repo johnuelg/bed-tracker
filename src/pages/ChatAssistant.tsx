@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { BedDouble, History, MessageSquarePlus, Send, Stethoscope, Trash2 } from "lucide-react";
+import { BedDouble, History, Menu, MessageSquarePlus, Send, Stethoscope, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
 import { getValidatedSupabaseEnv } from "@/integrations/supabase/env-validator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -66,10 +67,66 @@ const deriveTitle = (messages: UIMessage[]): string => {
   return text.length > 48 ? `${text.slice(0, 48)}…` : text;
 };
 
+const ThreadList = ({
+  threads,
+  threadId,
+  onSelect,
+  onDelete,
+}: {
+  threads: ChatThread[];
+  threadId: string;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) => (
+  <ScrollArea className="flex-1">
+    <div className="space-y-1.5 p-2 sm:p-3">
+      {threads.length === 0 ? (
+        <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+          No conversations yet.
+        </p>
+      ) : (
+        threads.map((t) => {
+          const active = t.id === threadId;
+          return (
+            <div
+              key={t.id}
+              className={cn(
+                "group flex items-start gap-1.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                active ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => onSelect(t.id)}
+                className={cn(
+                  "min-w-0 flex-1 text-left text-sm leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words",
+                  active ? "text-accent-foreground" : "text-foreground",
+                )}
+                title={t.title}
+              >
+                {t.title}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(t.id)}
+                className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground opacity-70 transition hover:bg-destructive/10 hover:text-destructive md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                aria-label="Delete conversation"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })
+      )}
+    </div>
+  </ScrollArea>
+);
+
 const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
   const navigate = useNavigate();
   const [threads, setThreads] = useState<ChatThread[]>(() => loadThreads());
   const [input, setInput] = useState("");
+  const [mobileThreadsOpen, setMobileThreadsOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const activeThread = threads.find((t) => t.id === threadId);
@@ -142,11 +199,13 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
     const updated = [next, ...threads];
     saveThreads(updated);
     setThreads(updated);
+    setMobileThreadsOpen(false);
     navigate(`/chat-assistant/${id}`);
   };
 
   const handleSelectThread = (id: string) => {
     if (id === threadId) return;
+    setMobileThreadsOpen(false);
     navigate(`/chat-assistant/${id}`);
   };
 
@@ -170,12 +229,16 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
       }
       setMessages([]);
     }
+
+    if (remaining.length === 0 || id !== threadId) {
+      setMobileThreadsOpen(false);
+    }
   };
 
   return (
-    <div className="grid h-[calc(100vh-7rem)] grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div className="grid h-[calc(100vh-7rem)] grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
       {/* Threads sidebar */}
-      <Card className="hidden h-full overflow-hidden lg:flex lg:flex-col">
+      <Card className="hidden h-full overflow-hidden md:flex md:flex-col">
         <div className="flex items-center justify-between border-b p-3">
           <p className="text-sm font-semibold">Conversations</p>
           <Button size="sm" variant="secondary" onClick={handleNewThread}>
@@ -183,69 +246,63 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
             New
           </Button>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="space-y-1 p-2">
-            {threads.length === 0 ? (
-              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                No conversations yet.
-              </p>
-            ) : (
-              threads.map((t) => {
-                const active = t.id === threadId;
-                return (
-                  <div
-                    key={t.id}
-                    className={cn(
-                      "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
-                      active ? "bg-accent text-accent-foreground" : "hover:bg-muted",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleSelectThread(t.id)}
-                      className="min-w-0 flex-1 truncate text-left"
-                      title={t.title}
-                    >
-                      {t.title}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteThread(t.id)}
-                      className="rounded p-1 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                      aria-label="Delete conversation"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </ScrollArea>
+        <ThreadList
+          threads={threads}
+          threadId={threadId}
+          onSelect={handleSelectThread}
+          onDelete={handleDeleteThread}
+        />
       </Card>
 
       {/* Chat panel */}
       <Card className="flex h-full min-w-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold">Chat Assistant</h1>
-            <p className="truncate text-xs text-muted-foreground">
+          <div className="min-w-0 pr-2">
+            <h1 className="text-base font-bold sm:text-lg">Chat Assistant</h1>
+            <p className="text-xs text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden sm:[-webkit-line-clamp:1]">
               Ask about occupied, vacant, or closed beds, room availability, occupancy rate, and the latest updates. Times shown are Saudi Arabia local time.
             </p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="lg:hidden"
-            onClick={handleNewThread}
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-            New
-          </Button>
+          <div className="flex items-center gap-2 md:hidden">
+            <Sheet open={mobileThreadsOpen} onOpenChange={setMobileThreadsOpen}>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => setMobileThreadsOpen(true)}
+                aria-label="Open conversations"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <SheetContent side="left" className="w-[88vw] max-w-[360px] p-0">
+                <SheetHeader className="border-b px-4 py-3">
+                  <SheetTitle className="text-base">Conversations</SheetTitle>
+                </SheetHeader>
+                <div className="flex h-full flex-col pb-14">
+                  <div className="border-b px-3 py-2.5">
+                    <Button size="sm" variant="secondary" onClick={handleNewThread}>
+                      <MessageSquarePlus className="h-4 w-4" />
+                      New conversation
+                    </Button>
+                  </div>
+                  <ThreadList
+                    threads={threads}
+                    threadId={threadId}
+                    onSelect={handleSelectThread}
+                    onDelete={handleDeleteThread}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <Button size="icon" variant="outline" onClick={handleNewThread} aria-label="New conversation">
+              <MessageSquarePlus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
+          <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 p-3 sm:gap-4 sm:p-4">
             {messages.length === 0 ? (
               <EmptyState onPick={handleSend} />
             ) : (
@@ -267,8 +324,8 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
           </div>
         </ScrollArea>
 
-        <div className="border-t p-3">
-          <div className="mx-auto w-full max-w-3xl">
+        <div className="border-t p-3 sm:p-4">
+          <div className="mx-auto w-full max-w-4xl">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -287,7 +344,7 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
                   }
                 }}
                 placeholder="Ask about beds, occupancy, closures…"
-                className="min-h-[48px] max-h-40 flex-1 resize-none"
+                className="min-h-[48px] max-h-40 flex-1 resize-none text-sm sm:text-base"
                 disabled={isBusy}
                 aria-label="Message"
               />
@@ -345,26 +402,26 @@ const MessageBubble = ({ message }: { message: UIMessage }) => {
     .join("");
 
   return (
-    <div className={cn("flex w-full gap-3", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex w-full gap-2.5 sm:gap-3", isUser ? "justify-end" : "justify-start")}>
       {!isUser ? (
-        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="mt-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:flex">
           <BedDouble className="h-4 w-4" />
         </div>
       ) : null}
-      <div className={cn("min-w-0 max-w-[85%]", isUser ? "" : "flex-1")}>
+      <div className={cn("min-w-0 max-w-[92%] sm:max-w-[88%] md:max-w-[85%]", isUser ? "" : "flex-1")}>
         {isUser ? (
-          <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2 text-sm text-primary-foreground">
+          <div className="rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-sm text-primary-foreground sm:px-4">
             <p className="whitespace-pre-wrap break-words">{text}</p>
           </div>
         ) : (
-          <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-strong:text-foreground dark:prose-invert">
+          <div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-strong:text-foreground sm:prose-base dark:prose-invert">
             {text ? (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   table: ({ className, ...props }) => (
                     <div className="my-3 w-full overflow-x-auto rounded-md border border-border bg-card">
-                      <table className={cn("w-full min-w-[560px] border-collapse text-sm", className)} {...props} />
+                      <table className={cn("w-full min-w-[460px] border-collapse text-xs sm:min-w-[560px] sm:text-sm", className)} {...props} />
                     </div>
                   ),
                   thead: ({ className, ...props }) => (
@@ -373,14 +430,14 @@ const MessageBubble = ({ message }: { message: UIMessage }) => {
                   th: ({ className, ...props }) => (
                     <th
                       className={cn(
-                        "border-b border-border px-3 py-2 text-left text-xs font-semibold uppercase tracking-normal text-muted-foreground",
+                        "border-b border-border px-2.5 py-2 text-left text-[11px] font-semibold uppercase tracking-normal text-muted-foreground sm:px-3 sm:text-xs",
                         className,
                       )}
                       {...props}
                     />
                   ),
                   td: ({ className, ...props }) => (
-                    <td className={cn("border-b border-border/70 px-3 py-2 align-middle", className)} {...props} />
+                    <td className={cn("border-b border-border/70 px-2.5 py-2 align-middle sm:px-3", className)} {...props} />
                   ),
                   tr: ({ className, ...props }) => (
                     <tr className={cn("odd:bg-background even:bg-muted/20", className)} {...props} />
