@@ -5,6 +5,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { BedDouble, History, MessageSquarePlus, Send, Stethoscope, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
+import { getValidatedSupabaseEnv } from "@/integrations/supabase/env-validator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,10 +21,8 @@ type ChatThread = {
 };
 
 const STORAGE_KEY = "chat_assistant_threads_v1";
-const FUNCTION_URL =
-  "https://mlgwebfonhkywqhgniux.supabase.co/functions/v1/bed-chat";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sZ3dlYmZvbmhreXdxaGduaXV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzA1MDcsImV4cCI6MjA5MTg0NjUwN30.yqWRCYUU8wulloZYhBBByjt4qPASW4h9cI2VkxGtxxM";
+const { supabaseUrl, supabaseAnonKey } = getValidatedSupabaseEnv();
+const FUNCTION_URL = `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/bed-chat`;
 
 const SUGGESTED_PROMPTS = [
   { icon: BedDouble, text: "How many beds are vacant today across all departments?" },
@@ -81,10 +80,10 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
         api: FUNCTION_URL,
         fetch: async (url, init) => {
           const session = await supabase.auth.getSession();
-          const token = session.data.session?.access_token ?? SUPABASE_ANON_KEY;
+          const token = session.data.session?.access_token ?? supabaseAnonKey;
           const headers = new Headers(init?.headers);
           headers.set("Authorization", `Bearer ${token}`);
-          headers.set("apikey", SUPABASE_ANON_KEY);
+          headers.set("apikey", supabaseAnonKey);
           return fetch(url, { ...init, headers });
         },
       }),
