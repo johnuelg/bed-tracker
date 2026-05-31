@@ -1,0 +1,134 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 191 65% 96%;
+    --foreground: 200 38% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 38% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 38% 20%;
+
+    --primary: 198 62% 49%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 190 59% 89%;
+    --secondary-foreground: 200 38% 20%;
+
+    --muted: 191 60% 93%;
+    --muted-foreground: 198 25% 40%;
+
+    --accent: 193 62% 84%;
+    --accent-foreground: 200 38% 20%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 191 52% 84%;
+    --input: 191 52% 84%;
+    --ring: 198 62% 49%;
+
+    --hospital-50: 192 72% 96%;
+    --hospital-100: 192 73% 91%;
+    --hospital-200: 191 64% 84%;
+    --hospital-300: 192 63% 74%;
+    --hospital-400: 194 62% 62%;
+    --hospital-500: 198 62% 49%;
+    --hospital-600: 199 61% 45%;
+    --hospital-700: 198 62% 40%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 198 62% 40%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 198 62% 49%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 194 62% 62%;
+    --sidebar-accent-foreground: 200 38% 20%;
+    --sidebar-border: 199 61% 45%;
+    --sidebar-ring: 192 63% 74%;
+  }
+
+  .dark {
+    --background: 200 48% 10%;
+    --foreground: 191 65% 96%;
+
+    --card: 200 44% 14%;
+    --card-foreground: 191 65% 96%;
+
+    --popover: 200 44% 14%;
+    --popover-foreground: 191 65% 96%;
+
+    --primary: 194 62% 62%;
+    --primary-foreground: 200 48% 10%;
+
+    --secondary: 199 49% 26%;
+    --secondary-foreground: 191 65% 96%;
+
+    --muted: 199 49% 26%;
+    --muted-foreground: 191 35% 76%;
+
+    --accent: 198 62% 49%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 40.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 199 49% 30%;
+    --input: 199 49% 30%;
+    --ring: 194 62% 62%;
+    --sidebar-background: 199 61% 45%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 194 62% 62%;
+    --sidebar-primary-foreground: 200 48% 10%;
+    --sidebar-accent: 198 62% 49%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 199 49% 30%;
+    --sidebar-ring: 192 63% 74%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Nunito", "Quicksand", sans-serif;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 20% 20%, hsl(var(--hospital-100)) 0%, transparent 32%),
+      radial-gradient(circle at 80% 12%, hsl(var(--hospital-200)) 0%, transparent 35%),
+      linear-gradient(145deg, hsl(var(--background)), hsl(var(--hospital-50)));
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Quicksand", "Nunito", sans-serif;
+  }
+}
+
+@layer utilities {
+  .hospital-glass {
+    @apply border border-border/70 bg-card/80 backdrop-blur-md shadow-sm;
+  }
+
+  .hospital-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
