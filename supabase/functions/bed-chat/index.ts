@@ -104,19 +104,11 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const today = todaySaudiIso();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
-    const startDate = new Intl.DateTimeFormat("en-CA", {
-      timeZone: SAUDI_TZ, year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(sevenDaysAgo);
-
     const [{ data: deptRows }, { data: subRows }, { data: llmSettingsRow }] = await Promise.all([
       supabase.from("departments").select("id,name,is_active").eq("is_active", true),
       supabase
         .from("bed_submissions")
-        .select("id,department_id,total_beds,occupied,closed,closure_reason,submitted_on,updated_at,created_at")
-        .gte("submitted_on", startDate)
+        .select("id,department_id,total_beds,occupied,closed,closure_reason,submitted_on,updated_at,created_at,custom_fields,calculated_fields")
         .order("updated_at", { ascending: false }),
       supabase
         .from("app_settings")
@@ -128,8 +120,11 @@ Deno.serve(async (req) => {
     const departments = (deptRows ?? []) as Department[];
     const allSubs = (subRows ?? []) as Submission[];
     const latest = buildLatestPerDeptDay(allSubs);
-    const todays = latest.filter((r) => r.submitted_on === today);
     const deptName = (id: string) => departments.find((d) => d.id === id)?.name ?? "Unknown";
+
+    const sortedDates = Array.from(new Set(latest.map((r) => r.submitted_on))).sort((a, b) => (a < b ? 1 : -1));
+    const latestDate = sortedDates[0] ?? todaySaudiIso();
+    const todays = latest.filter((r) => r.submitted_on === latestDate);
 
     const todayByDept = todays.map((r) => {
       const vacant = Math.max(0, r.total_beds - r.occupied - r.closed);
@@ -141,6 +136,7 @@ Deno.serve(async (req) => {
         occupied: r.occupied,
         closed: r.closed,
         vacant,
+        waiting: extractWaiting(r),
         occupancy_pct: occRate,
         closure_reason: r.closure_reason,
         last_updated_saudi: formatSaudi(r.updated_at ?? r.created_at),
@@ -171,10 +167,33 @@ Deno.serve(async (req) => {
     const context = {
       today_saudi: today,
       generated_at_saudi: formatSaudi(new Date().toISOString()),
+      latest_data_date_saudi: latestDate,
+      total_records_in_scope: allSubs.length,
+      distinct_dates_in_scope: sortedDates.length,
+      all_dates_desc: sortedDates,
       thresholds: { low: "<60%", optimal: "60-84%", watch: "85-89%", high: ">=90%" },
       overall_today: { ...totals, occupancy_pct: overallOcc },
       today_by_department: todayByDept,
       last_7_days_by_department: recentByDept,
+      latest_per_department_per_date: latest.map((r) => {
+        const vacant = Math.max(0, r.total_beds - r.occupied - r.closed);
+        const occRate = r.total_beds > 0 ? +((r.occupied / r.total_beds) * 100).toFixed(1) : 0;
+        return {
+          id: r.id,
+          department: deptName(r.department_id),
+          date: r.submitted_on,
+          total: r.total_beds,
+          occupied: r.occupied,
+          closed: r.closed,
+          vacant,
+          waiting: extractWaiting(r),
+          occupancy_pct: occRate,
+          closure_reason: r.closure_reason,
+          custom_fields: r.custom_fields ?? {},
+          calculated_fields: r.calculated_fields ?? {},
+          last_updated_saudi: formatSaudi(r.updated_at ?? r.created_at),
+        };
+      }),
     };
 
     const system = `You are the Bed Management Assistant for Taif Children's Hospital.
@@ -189,6 +208,10 @@ DATA RULES:
 - Occupancy bands: Low <60%, Optimal 60-84%, Watch 85-89%, High >=90%. Label values using these bands when relevant.
 
 STYLE: Concise, professional, scannable. Prefer short markdown tables or bullet lists for numbers. Always cite the date used.
+
+TABLE-SCOPE RULE:
+- Data Table scope is ALL data (all dates). Use latest_per_department_per_date for this.
+- Do not say "today" unless the user explicitly asks for today, or unless latest_data_date_saudi is clearly cited.
 
 SNAPSHOT JSON:
 ${JSON.stringify(context)}`;
