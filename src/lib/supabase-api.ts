@@ -41,6 +41,7 @@ const DEFAULT_ROLE_MENU_VISIBILITY: RoleMenuVisibility = {
   audit_log: true,
   bed_map: true,
   reports_analytics: true,
+  chat_assistant: true,
 };
 const DEFAULT_NAV_VISIBILITY: NavVisibilitySettings = {
   admin: { ...DEFAULT_ROLE_MENU_VISIBILITY },
@@ -129,6 +130,7 @@ const normalizeRoleMenuVisibility = (value: unknown): RoleMenuVisibility => {
     data_table: typeof source.data_table === "boolean" ? source.data_table : true,
     audit_log: typeof source.audit_log === "boolean" ? source.audit_log : true,
     reports_analytics: typeof source.reports_analytics === "boolean" ? source.reports_analytics : true,
+    chat_assistant: typeof source.chat_assistant === "boolean" ? source.chat_assistant : true,
   };
 };
 
