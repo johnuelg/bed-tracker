@@ -1,11 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamText, convertToModelMessages, type UIMessage } from "npm:ai@6";
+import { google } from "npm:@ai-sdk/google@1";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SAUDI_TZ = "Asia/Riyadh";
 
@@ -43,6 +40,24 @@ type Submission = {
 };
 
 type Department = { id: string; name: string; is_active: boolean };
+type LlmProvider = "lovable_gateway" | "gemini_direct";
+type LlmSettings = { provider: LlmProvider; model: string };
+
+const DEFAULT_LLM_SETTINGS: LlmSettings = {
+  provider: "lovable_gateway",
+  model: "google/gemini-3-flash-preview",
+};
+
+const normalizeLlmSettings = (value: unknown): LlmSettings => {
+  if (!value || typeof value !== "object") return DEFAULT_LLM_SETTINGS;
+  const source = value as Partial<Record<keyof LlmSettings, unknown>>;
+  const provider = source.provider === "gemini_direct" ? "gemini_direct" : "lovable_gateway";
+  const modelCandidate = typeof source.model === "string" ? source.model.trim() : "";
+  return {
+    provider,
+    model: modelCandidate.length > 0 ? modelCandidate : DEFAULT_LLM_SETTINGS.model,
+  };
+};
 
 const buildLatestPerDeptDay = (rows: Submission[]) => {
   const map = new Map<string, Submission>();
@@ -59,14 +74,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "AI gateway not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const { messages }: { messages: UIMessage[] } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -83,13 +90,18 @@ Deno.serve(async (req) => {
       timeZone: SAUDI_TZ, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(sevenDaysAgo);
 
-    const [{ data: deptRows }, { data: subRows }] = await Promise.all([
+    const [{ data: deptRows }, { data: subRows }, { data: llmSettingsRow }] = await Promise.all([
       supabase.from("departments").select("id,name,is_active").eq("is_active", true),
       supabase
         .from("bed_submissions")
         .select("id,department_id,total_beds,occupied,closed,closure_reason,submitted_on,updated_at,created_at")
         .gte("submitted_on", startDate)
         .order("updated_at", { ascending: false }),
+      supabase
+        .from("app_settings")
+        .select("setting_value")
+        .eq("setting_key", "llm_settings")
+        .maybeSingle(),
     ]);
 
     const departments = (deptRows ?? []) as Department[];
@@ -160,14 +172,32 @@ STYLE: Concise, professional, scannable. Prefer short markdown tables or bullet 
 SNAPSHOT JSON:
 ${JSON.stringify(context)}`;
 
-    const gateway = createOpenAICompatible({
-      name: "lovable-ai-gateway",
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      headers: { "Lovable-API-Key": apiKey },
-    });
+    const llmSettings = normalizeLlmSettings(llmSettingsRow?.setting_value);
+    const model = (() => {
+      if (llmSettings.provider === "gemini_direct") {
+        const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+        if (!geminiApiKey) {
+          throw new Error("GEMINI_API_KEY is missing. Add it in project secrets to use Gemini direct mode.");
+        }
+        return google(llmSettings.model || "gemini-1.5-flash", {
+          apiKey: geminiApiKey,
+        });
+      }
+
+      const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableApiKey) {
+        throw new Error("LOVABLE_API_KEY is missing. Configure project secret or switch provider to Gemini direct.");
+      }
+      const gateway = createOpenAICompatible({
+        name: "lovable-ai-gateway",
+        baseURL: "https://ai.gateway.lovable.dev/v1",
+        headers: { "Lovable-API-Key": lovableApiKey },
+      });
+      return gateway(llmSettings.model || "google/gemini-3-flash-preview");
+    })();
 
     const result = streamText({
-      model: gateway("google/gemini-3-flash-preview"),
+      model,
       system,
       messages: convertToModelMessages(messages),
     });
