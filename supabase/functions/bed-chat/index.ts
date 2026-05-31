@@ -125,7 +125,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: responseCorsHeaders });
 
   try {
-    const { messages }: { messages: UIMessage[] } = await req.json();
+    const body = await req.json();
+    const messages = Array.isArray(body?.messages) ? (body.messages as UIMessage[]) : null;
+    if (!messages) {
+      return new Response(JSON.stringify({ error: "Invalid request body: messages array is required." }), {
+        status: 400,
+        headers: { ...responseCorsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
@@ -272,7 +279,7 @@ ${JSON.stringify(context)}`;
     const result = streamText({
       model,
       system,
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
     });
 
     return result.toUIMessageStreamResponse({ headers: responseCorsHeaders });
