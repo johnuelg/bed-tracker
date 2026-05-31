@@ -1,0 +1,2 @@
+create unique index if not exists uq_bed_submissions_department_bedtype_day
+on public.bed_submissions (department_id, coalesce(bed_type_id, '00000000-0000-0000-0000-000000000000'::uuid), submitted_on);

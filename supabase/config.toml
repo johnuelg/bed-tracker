@@ -1,0 +1,4 @@
+project_id = "mlgwebfonhkywqhgniux"
+
+[functions.bed-chat]
+verify_jwt = true
