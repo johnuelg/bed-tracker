@@ -4,6 +4,11 @@ import { google } from "npm:@ai-sdk/google@1";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
+const responseCorsHeaders = {
+  ...corsHeaders,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-vercel-ai-ui-message-stream",
+};
+
 const SAUDI_TZ = "Asia/Riyadh";
 
 const formatSaudi = (iso: string) =>
@@ -92,7 +97,7 @@ const extractWaiting = (row: Submission) => {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: responseCorsHeaders });
 
   try {
     const { messages }: { messages: UIMessage[] } = await req.json();
@@ -246,12 +251,12 @@ ${JSON.stringify(context)}`;
       messages: convertToModelMessages(messages),
     });
 
-    return result.toUIMessageStreamResponse({ headers: corsHeaders });
+    return result.toUIMessageStreamResponse({ headers: responseCorsHeaders });
   } catch (err) {
     console.error("bed-chat error", err);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 500, headers: { ...responseCorsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
