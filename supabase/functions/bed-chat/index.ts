@@ -37,6 +37,8 @@ type Submission = {
   submitted_on: string;
   updated_at: string | null;
   created_at: string;
+  custom_fields?: Record<string, unknown> | null;
+  calculated_fields?: Record<string, unknown> | null;
 };
 
 type Department = { id: string; name: string; is_active: boolean };
@@ -68,6 +70,25 @@ const buildLatestPerDeptDay = (rows: Submission[]) => {
     if (!existing || ts(r) > ts(existing)) map.set(key, r);
   }
   return [...map.values()];
+};
+
+const extractWaiting = (row: Submission) => {
+  const custom = (row.custom_fields ?? {}) as Record<string, unknown>;
+  const direct = custom.waiting_patients ?? custom.waitingPatients;
+  if (typeof direct === "number" && Number.isFinite(direct)) return direct;
+  if (typeof direct === "string") {
+    const parsed = Number(direct);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const detected = Object.entries(custom).find(([key]) =>
+    key.toLowerCase().includes("waiting") && key.toLowerCase().includes("patient"),
+  )?.[1];
+  if (typeof detected === "number" && Number.isFinite(detected)) return detected;
+  if (typeof detected === "string") {
+    const parsed = Number(detected);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 };
 
 Deno.serve(async (req) => {
