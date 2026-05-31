@@ -25,12 +25,12 @@ type NavVisibilityGuardProps = {
 
 export const NavVisibilityGuard = ({ settingKey }: NavVisibilityGuardProps) => {
   const { loading, roles } = useAuth();
-  const { data: navVisibility, isLoading } = useQuery({
+  const { data: navVisibility } = useQuery({
     queryKey: ["app_settings", "nav_visibility"],
     queryFn: fetchNavVisibilitySettings,
   });
 
-  if (loading || isLoading) {
+  if (loading) {
     return null;
   }
 

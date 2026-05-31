@@ -13,6 +13,7 @@ import type { AppRole, Profile } from "@/types/hospital";
 
 type AuthContextValue = {
   loading: boolean;
+  profileLoading: boolean;
   session: Session | null;
   user: User | null;
   profile: Profile | null;
@@ -29,6 +30,7 @@ const db = supabase as any;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -38,38 +40,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!currentUser) {
       setProfile(null);
       setRoles([]);
+      setProfileLoading(false);
       return;
     }
 
-    const { data: existingProfile } = await db
-      .from("profiles")
-      .select("id,user_id,display_name,is_active")
-      .eq("user_id", currentUser.id)
-      .maybeSingle();
+    setProfileLoading(true);
 
-    if (!existingProfile) {
-      await db.from("profiles").insert({ user_id: currentUser.id, display_name: currentUser.email?.split("@")[0] ?? "User" });
+    try {
+      const [{ data: existingProfile }, { data: rolesData }] = await Promise.all([
+        db.from("profiles").select("id,user_id,display_name,is_active").eq("user_id", currentUser.id).maybeSingle(),
+        db.from("user_roles").select("role").eq("user_id", currentUser.id),
+      ]);
+
+      let resolvedProfile = existingProfile;
+
+      if (!resolvedProfile) {
+        await db.from("profiles").insert({ user_id: currentUser.id, display_name: currentUser.email?.split("@")[0] ?? "User" });
+        const { data: createdProfile } = await db
+          .from("profiles")
+          .select("id,user_id,display_name,is_active")
+          .eq("user_id", currentUser.id)
+          .maybeSingle();
+        resolvedProfile = createdProfile;
+      }
+
+      const mappedRoles = (rolesData?.map((row: { role: string }) => row.role) ?? []) as AppRole[];
+
+      if (mappedRoles.length === 0) {
+        await db.from("user_roles").insert({ user_id: currentUser.id, role: "admin" });
+        setRoles(["admin"]);
+      } else {
+        setRoles(mappedRoles);
+      }
+
+      setProfile(resolvedProfile ?? null);
+    } finally {
+      setProfileLoading(false);
     }
-
-    const { data: profileData } = await db
-      .from("profiles")
-      .select("id,user_id,display_name,is_active")
-      .eq("user_id", currentUser.id)
-      .maybeSingle();
-
-    const { data: rolesData } = await db.from("user_roles").select("role").eq("user_id", currentUser.id);
-
-    const mappedRoles = (rolesData?.map((row: { role: string }) => row.role) ?? []) as AppRole[];
-
-    if (mappedRoles.length === 0) {
-      await db.from("user_roles").insert({ user_id: currentUser.id, role: "admin" });
-      const { data: refreshedRoles } = await db.from("user_roles").select("role").eq("user_id", currentUser.id);
-      setRoles((refreshedRoles?.map((row: { role: string }) => row.role) ?? []) as AppRole[]);
-    } else {
-      setRoles(mappedRoles);
-    }
-
-    setProfile(profileData ?? null);
   }, []);
 
   useEffect(() => {
@@ -77,11 +84,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
 
-      try {
-        await loadProfileAndRoles(nextSession?.user ?? null);
-      } finally {
+      if (!nextSession?.user) {
+        await loadProfileAndRoles(null);
         setLoading(false);
+        return;
       }
+
+      setLoading(false);
+      void loadProfileAndRoles(nextSession.user);
     };
 
     const {
@@ -114,6 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo<AuthContextValue>(
     () => ({
       loading,
+      profileLoading,
       session,
       user,
       profile,
@@ -123,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       signOut,
       refreshProfile,
     }),
-    [loading, session, user, profile, roles, signIn, signOut, refreshProfile],
+    [loading, profileLoading, session, user, profile, roles, signIn, signOut, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
