@@ -97,7 +97,7 @@ const AppShellInner = () => {
     .filter((item) => roleVisibility[item.settingKey]);
 
   const canAccessSettings = hasAnyRole(roles, ["admin"]);
-  const settingsVisible = canAccessSettings && (visibleSettingsItems.length > 0 || location.pathname === "/settings");
+  const settingsVisible = canAccessSettings;
   const settingsActive =
     location.pathname === "/settings" || visibleSettingsItems.some((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
 
@@ -166,6 +166,13 @@ const AppShellInner = () => {
                     </SidebarMenuButton>
                     {settingsOpen && !collapsed ? (
                       <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild isActive={location.pathname === "/settings"}>
+                            <NavLink to="/settings" onClick={closeMobile}>
+                              API Settings
+                            </NavLink>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                         {visibleSettingsItems.map((item) => {
                           const active = routeMatchedPath === item.to;
                           return (
