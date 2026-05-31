@@ -14,6 +14,7 @@ import type {
   FormField,
   KpiFormula,
   KpiWidget,
+  LlmSettings,
   NavVisibilitySettings,
   OccupancyBenchmarkLevel,
   OccupancyBenchmarkSettings,
@@ -27,6 +28,7 @@ const db = supabase as any;
 const NAV_VISIBILITY_KEY = "nav_visibility";
 const ROLE_CATALOG_KEY = "role_catalog";
 const OCCUPANCY_BENCHMARK_KEY = "occupancy_benchmark";
+const LLM_SETTINGS_KEY = "llm_settings";
 const DEPARTMENT_TOTAL_BEDS_KEY = "department_total_beds";
 const AUDIT_LOG_FALLBACK_KEY = "audit_logs_fallback";
 const DEFAULT_ROLE_CATALOG: AppRole[] = ["admin", "director", "doctor", "nurse", "staff"];
@@ -97,6 +99,20 @@ const DEFAULT_OCCUPANCY_BENCHMARK_SETTINGS: OccupancyBenchmarkSettings = {
       icon: "alert-triangle",
     },
   ],
+};
+
+const DEFAULT_LLM_SETTINGS: LlmSettings = {
+  provider: "lovable_gateway",
+  model: "google/gemini-3-flash-preview",
+};
+
+const normalizeLlmSettings = (value: unknown): LlmSettings => {
+  if (!value || typeof value !== "object") return { ...DEFAULT_LLM_SETTINGS };
+  const source = value as Partial<Record<keyof LlmSettings, unknown>>;
+  const provider = source.provider === "gemini_direct" ? "gemini_direct" : "lovable_gateway";
+  const modelCandidate = typeof source.model === "string" ? source.model.trim() : "";
+  const model = modelCandidate.length > 0 ? modelCandidate : DEFAULT_LLM_SETTINGS.model;
+  return { provider, model };
 };
 
 const isMissingSchemaTable = (err: unknown) => {
@@ -494,6 +510,37 @@ export const saveOccupancyBenchmarkSettings = async (
   const { error } = await db.from("app_settings").upsert(
     {
       setting_key: OCCUPANCY_BENCHMARK_KEY,
+      setting_value: normalized,
+      updated_by: userId,
+    },
+    { onConflict: "setting_key" },
+  );
+
+  if (error) throw error;
+};
+
+export const fetchLlmSettings = async (): Promise<LlmSettings> => {
+  const { data, error } = await db
+    .from("app_settings")
+    .select("setting_value")
+    .eq("setting_key", LLM_SETTINGS_KEY)
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeLlmSettings(data?.setting_value);
+};
+
+export const saveLlmSettings = async (
+  roles: AppRole[],
+  settings: LlmSettings,
+  userId: string,
+) => {
+  requireRole(roles, ["admin"], "manage LLM settings");
+  const normalized = normalizeLlmSettings(settings);
+
+  const { error } = await db.from("app_settings").upsert(
+    {
+      setting_key: LLM_SETTINGS_KEY,
       setting_value: normalized,
       updated_by: userId,
     },
