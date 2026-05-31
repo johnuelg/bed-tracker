@@ -113,6 +113,13 @@ export type OccupancyBenchmarkSettings = {
   levels: OccupancyBenchmarkLevel[];
 };
 
+export type LlmProvider = "lovable_gateway" | "gemini_direct";
+
+export type LlmSettings = {
+  provider: LlmProvider;
+  model: string;
+};
+
 export type UserEntryPermissions = {
   user_id: string;
   can_add: boolean;
