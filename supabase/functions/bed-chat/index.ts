@@ -50,19 +50,35 @@ type Department = { id: string; name: string; is_active: boolean };
 type LlmProvider = "lovable_gateway" | "gemini_direct";
 type LlmSettings = { provider: LlmProvider; model: string };
 
+const DEFAULT_GATEWAY_MODEL = "google/gemini-3-flash-preview";
+const DEFAULT_GEMINI_DIRECT_MODEL = "gemini-2.5-flash";
+
 const DEFAULT_LLM_SETTINGS: LlmSettings = {
   provider: "lovable_gateway",
-  model: "google/gemini-3-flash-preview",
+  model: DEFAULT_GATEWAY_MODEL,
 };
+
+const isGatewayStyleModel = (model: string) => model.includes("/");
 
 const normalizeLlmSettings = (value: unknown): LlmSettings => {
   if (!value || typeof value !== "object") return DEFAULT_LLM_SETTINGS;
   const source = value as Partial<Record<keyof LlmSettings, unknown>>;
   const provider = source.provider === "gemini_direct" ? "gemini_direct" : "lovable_gateway";
   const modelCandidate = typeof source.model === "string" ? source.model.trim() : "";
+
+  if (provider === "gemini_direct") {
+    // Gemini direct expects native Gemini model IDs (e.g., gemini-2.5-flash),
+    // not gateway-style provider/model IDs such as google/gemini-3-flash-preview.
+    const directModel =
+      modelCandidate.length === 0 || isGatewayStyleModel(modelCandidate)
+        ? DEFAULT_GEMINI_DIRECT_MODEL
+        : modelCandidate;
+    return { provider, model: directModel };
+  }
+
   return {
     provider,
-    model: modelCandidate.length > 0 ? modelCandidate : DEFAULT_LLM_SETTINGS.model,
+    model: modelCandidate.length > 0 ? modelCandidate : DEFAULT_GATEWAY_MODEL,
   };
 };
 
