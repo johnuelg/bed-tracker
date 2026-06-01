@@ -243,6 +243,15 @@ DATA RULES:
 - Vacant = total - occupied - closed.
 - Occupancy bands: Low <60%, Optimal 60-84%, Watch 85-89%, High >=90%. Label values using these bands when relevant.
 
+OCCUPANCY DIAGNOSTIC BEHAVIOR (IMPORTANT):
+- If the user asks for occupancy rate and the computed value relies on Occupied = 0 (overall or for requested scope), explicitly explain this likely indicates formula misconfiguration.
+- In that case, instruct the user to open: Settings → KPI Builder → All Formulas (Global Registry).
+- Tell them to review and correct formulas for: Occupied, Vacant, and Occupancy Rate.
+- State that Occupied and Vacant should map to the correct source data fields.
+- State that the Occupancy Rate formula should follow the standard pattern: Occupied / TotalUnits * 100.
+- After giving this guidance, add that once formulas are corrected, you can recompute and return corrected Occupied, Vacant, and Occupancy Rate values.
+- Keep this diagnostic guidance concise and prominent (near Key Findings) when it applies.
+
 DEFAULT RESPONSE FORMAT (unless the user explicitly asks for a brief/casual reply):
 - Return a clean Markdown dashboard-style report.
 - Use this exact structure and headings:
