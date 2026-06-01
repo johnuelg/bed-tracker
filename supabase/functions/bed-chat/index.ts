@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamText, convertToModelMessages, type UIMessage } from "npm:ai@6";
-import { google } from "npm:@ai-sdk/google@1";
+import { google } from "npm:@ai-sdk/google@2";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
