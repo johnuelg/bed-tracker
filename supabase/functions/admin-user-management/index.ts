@@ -73,6 +73,7 @@ Deno.serve(async (req) => {
     const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const {
       data: { user: caller },
@@ -86,12 +87,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: isAdmin, error: adminCheckError } = await callerClient.rpc("has_role", {
-      _user_id: caller.id,
-      _role: "admin",
-    });
+    const { data: adminRoleRows, error: adminCheckError } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.id)
+      .eq("role", "admin")
+      .limit(1);
 
-    if (adminCheckError || !isAdmin) {
+    if (adminCheckError) {
+      console.error("Failed to verify caller admin role", {
+        callerId: caller.id,
+        error: adminCheckError,
+      });
+      return new Response(JSON.stringify({ error: "Failed to verify admin access" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!adminRoleRows || adminRoleRows.length === 0) {
       return new Response(JSON.stringify({ error: "Admin access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -123,7 +137,6 @@ Deno.serve(async (req) => {
     }
 
     const body: Action = parsedBody.data;
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     if (body.action === "create_user") {
       const { data: created, error: createError } = await adminClient.auth.admin.createUser({
