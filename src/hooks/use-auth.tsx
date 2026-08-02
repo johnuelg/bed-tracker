@@ -27,6 +27,23 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const db = supabase as any;
+const NETWORK_ERROR_REGEX = /(networkerror|failed to fetch|fetch failed|load failed)/i;
+
+const isNetworkAuthError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  return NETWORK_ERROR_REGEX.test(message);
+};
+
+const clearSupabaseAuthStorage = () => {
+  if (typeof window === "undefined") return;
+
+  const authKeys = Object.keys(window.localStorage).filter(
+    (key) => key.includes("sb-") && key.includes("-auth-token"),
+  );
+
+  authKeys.forEach((key) => window.localStorage.removeItem(key));
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
@@ -100,16 +117,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       void hydrateAuthState(nextSession);
     });
 
-    void supabase.auth.getSession().then(({ data }) => {
-      void hydrateAuthState(data.session ?? null);
-    });
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        void hydrateAuthState(data.session ?? null);
+      })
+      .catch(async () => {
+        await hydrateAuthState(null);
+      });
 
     return () => subscription.unsubscribe();
   }, [loadProfileAndRoles]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const signInAttempt = async () => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    };
+
+    try {
+      await signInAttempt();
+    } catch (error) {
+      if (!isNetworkAuthError(error)) {
+        throw error;
+      }
+
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      clearSupabaseAuthStorage();
+
+      try {
+        await signInAttempt();
+      } catch (retryError) {
+        if (isNetworkAuthError(retryError)) {
+          throw new Error(
+            "Unable to reach the authentication service right now. Please refresh and try again.",
+          );
+        }
+        throw retryError;
+      }
+    }
   }, []);
 
   const signOut = useCallback(async () => {
