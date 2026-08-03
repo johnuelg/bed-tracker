@@ -187,7 +187,6 @@ const DataEntryPage = () => {
     const total_beds = Number(form.total_beds) || 0;
     const occupied = Number(form.occupied) || 0;
     const closed = Number(form.closed) || 0;
-    const fallbackVacant = Math.max(0, total_beds - occupied - closed);
     const scope = buildRowScope({
       total_beds,
       occupied,
@@ -196,10 +195,11 @@ const DataEntryPage = () => {
     });
     const { scope: resolvedScope, unresolved } = buildScopeWithFormulas(scope, kpiFormulas);
     const occupancyRate = evaluateOccupancyRate(kpiFormulas, resolvedScope);
+    const occupiedAuto = evaluateNamedFormula(kpiFormulas, "Occupied", resolvedScope, occupied);
+    const fallbackVacant = Math.max(0, total_beds - occupiedAuto - closed);
     // Prefer admin-defined "Vacant" / "Occupied" formulas from KPI Builder;
     // fall back to the canonical math when no registry formula exists.
     const vacant = evaluateNamedFormula(kpiFormulas, "Vacant", resolvedScope, fallbackVacant);
-    const occupiedAuto = evaluateNamedFormula(kpiFormulas, "Occupied", resolvedScope, occupied);
     const vacantFromFormula = Boolean(findFormulaByName(kpiFormulas, "Vacant"));
     const occupiedFromFormula = Boolean(findFormulaByName(kpiFormulas, "Occupied"));
     return {
@@ -1201,6 +1201,8 @@ const DataEntryPage = () => {
           {submissionView === "card"
             ? rows.map((row) => {
                 const dateTime = getSubmissionDateTime(row);
+                const occupiedAuto = Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0;
+                const vacantAuto = Math.max(0, row.total_beds - occupiedAuto - row.closed);
 
                 return (
                   <div key={row.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1210,11 +1212,10 @@ const DataEntryPage = () => {
                       </p>
                       <p className="font-semibold">Department: {departmentNameById[row.department_id] ?? "Unknown Department"}</p>
                       <p className="text-sm text-muted-foreground">
-                        Total {row.total_beds} • Occupied {Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0} • Closed {row.closed} • Vacant {Math.max(0, row.total_beds - (Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0) - row.closed)}
+                        Total {row.total_beds} • Occupied {occupiedAuto} • Closed {row.closed} • Vacant {vacantAuto}
                       </p>
                       {(() => {
-                        const occ = Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0;
-                        const rate = row.total_beds > 0 ? (occ / row.total_beds) * 100 : 0;
+                        const rate = row.total_beds > 0 ? (occupiedAuto / row.total_beds) * 100 : 0;
                         const bm = getOccupancyBenchmark(rate);
                         return (
                           <div className="flex items-center gap-2 text-xs">
@@ -1285,6 +1286,8 @@ const DataEntryPage = () => {
                     <TableBody>
                       {rows.map((row) => {
                         const dateTime = getSubmissionDateTime(row);
+                        const occupiedAuto = Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0;
+                        const vacantAuto = Math.max(0, row.total_beds - occupiedAuto - row.closed);
 
                         return (
                           <TableRow key={row.id}>
@@ -1292,13 +1295,12 @@ const DataEntryPage = () => {
                             <TableCell>{dateTime.time}</TableCell>
                             <TableCell>{departmentNameById[row.department_id] ?? "Unknown Department"}</TableCell>
                             <TableCell className="text-right">{row.total_beds}</TableCell>
-                            <TableCell className="text-right">{Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0}</TableCell>
+                            <TableCell className="text-right">{occupiedAuto}</TableCell>
                             <TableCell className="text-right">{row.closed}</TableCell>
-                            <TableCell className="text-right">{Math.max(0, row.total_beds - (Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0) - row.closed)}</TableCell>
+                            <TableCell className="text-right">{vacantAuto}</TableCell>
                             <TableCell className="text-right">
                               {(() => {
-                                const occ = Number((row as any).calculated_fields?.occupied_auto ?? row.occupied) || 0;
-                                const rate = row.total_beds > 0 ? (occ / row.total_beds) * 100 : 0;
+                                const rate = row.total_beds > 0 ? (occupiedAuto / row.total_beds) * 100 : 0;
                                 const bm = getOccupancyBenchmark(rate);
                                 return bm ? (
                                   <StatusBadge
