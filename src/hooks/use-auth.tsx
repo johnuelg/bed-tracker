@@ -122,7 +122,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .then(({ data }) => {
         void hydrateAuthState(data.session ?? null);
       })
-      .catch(async () => {
+      .catch(async (error) => {
+        if (isNetworkAuthError(error)) {
+          await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+          clearSupabaseAuthStorage();
+        }
         await hydrateAuthState(null);
       });
 
