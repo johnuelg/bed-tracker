@@ -187,7 +187,6 @@ const DataEntryPage = () => {
     const total_beds = Number(form.total_beds) || 0;
     const occupied = Number(form.occupied) || 0;
     const closed = Number(form.closed) || 0;
-    const fallbackVacant = Math.max(0, total_beds - occupied - closed);
     const scope = buildRowScope({
       total_beds,
       occupied,
@@ -196,10 +195,11 @@ const DataEntryPage = () => {
     });
     const { scope: resolvedScope, unresolved } = buildScopeWithFormulas(scope, kpiFormulas);
     const occupancyRate = evaluateOccupancyRate(kpiFormulas, resolvedScope);
+    const occupiedAuto = evaluateNamedFormula(kpiFormulas, "Occupied", resolvedScope, occupied);
+    const fallbackVacant = Math.max(0, total_beds - occupiedAuto - closed);
     // Prefer admin-defined "Vacant" / "Occupied" formulas from KPI Builder;
     // fall back to the canonical math when no registry formula exists.
     const vacant = evaluateNamedFormula(kpiFormulas, "Vacant", resolvedScope, fallbackVacant);
-    const occupiedAuto = evaluateNamedFormula(kpiFormulas, "Occupied", resolvedScope, occupied);
     const vacantFromFormula = Boolean(findFormulaByName(kpiFormulas, "Vacant"));
     const occupiedFromFormula = Boolean(findFormulaByName(kpiFormulas, "Occupied"));
     return {
