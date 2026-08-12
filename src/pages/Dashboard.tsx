@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   calendarDateToIsoDate,
   formatSaudiIsoDateForDisplay,
@@ -917,7 +918,35 @@ const DashboardPage = () => {
                       ) : null}
 
                       <div className="relative flex h-full min-w-0 flex-col gap-2 pr-12 sm:gap-3 sm:pr-20">
-                        <p className="text-xs text-muted-foreground sm:text-sm">{metric.name}</p>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="w-fit cursor-help border-b border-dashed border-muted-foreground/50 text-xs text-muted-foreground sm:text-sm">
+                              {metric.name}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" align="start" className="max-w-xs space-y-2 p-3 text-xs leading-relaxed">
+                            <p className="font-semibold text-popover-foreground">Occupancy calculation</p>
+                            <p>Current rate: Occupied ÷ Total Beds × 100, using the active KPI Builder formula when available.</p>
+                            {occupancyDelta ? (() => {
+                              const { diff, percentChange, previous } = occupancyDelta;
+                              const baseline = previous.time ? `${previous.date} ${previous.time}` : previous.date;
+                              return (
+                                <>
+                                  <p><span className="font-medium text-popover-foreground">Baseline:</span> {baseline} at {previous.rate.toFixed(1)}%.</p>
+                                  <p><span className="font-medium text-popover-foreground">Variance:</span> {occupancyRate.toFixed(1)}% − {previous.rate.toFixed(1)}% = {diff >= 0 ? "+" : ""}{diff.toFixed(1)} percentage points.</p>
+                                  <p>
+                                    <span className="font-medium text-popover-foreground">Relative change:</span>{" "}
+                                    {percentChange === null
+                                      ? "Not shown when the baseline is zero or near zero."
+                                      : `(${diff >= 0 ? "+" : ""}${diff.toFixed(1)} ÷ ${previous.rate.toFixed(1)}) × 100 = ${percentChange >= 0 ? "+" : ""}${percentChange.toFixed(1)}%.`}
+                                  </p>
+                                </>
+                              );
+                            })() : (
+                              <p>Choose another dashboard date or time to establish a comparison baseline.</p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
                         <p
                           className="text-2xl font-bold leading-tight sm:text-4xl"
                           style={{ color: accent }}
