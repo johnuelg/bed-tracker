@@ -964,36 +964,38 @@ const DashboardPage = () => {
                               className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-medium"
                               title={`Compared to previous selection (${prevLabel}, ${previous.rate.toFixed(1)}%)`}
                             >
-                              <span
-                                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5"
-                                style={{
-                                  color: trendColor,
-                                  backgroundColor: `color-mix(in srgb, ${trendColor} 12%, transparent)`,
-                                }}
-                              >
-                                <TrendIcon className="h-3 w-3" aria-hidden />
-                                <span>{pctLabel}</span>
-                              </span>
-                              <span className="text-muted-foreground">
-                                vs {prevLabel} ({previous.rate.toFixed(1)}%)
-                              </span>
-                            </div>
-                            <div className="space-y-1 border-t border-border/60 pt-2 text-[11px] leading-relaxed text-muted-foreground">
-                              <p>
-                                <span className="font-medium text-foreground">Variance:</span> current rate ({occupancyRate.toFixed(1)}%) minus the selected baseline ({previous.rate.toFixed(1)}%) = {varianceLabel}.
-                              </p>
-                              {percentChange === null ? (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5"
+                                  style={{
+                                    color: trendColor,
+                                    backgroundColor: `color-mix(in srgb, ${trendColor} 12%, transparent)`,
+                                  }}
+                                >
+                                  <TrendIcon className="h-3 w-3" aria-hidden />
+                                  <span>{pctLabel}</span>
+                                </span>
+                                <span className="text-muted-foreground">
+                                  vs {prevLabel} ({previous.rate.toFixed(1)}%)
+                                </span>
+                              </div>
+                              <div className="w-full space-y-1 border-t border-border/60 pt-2 leading-relaxed text-muted-foreground">
                                 <p>
-                                  Relative change is not shown because the baseline rate is zero or too close to zero.
+                                  <span className="font-medium text-foreground">Variance:</span> current rate ({occupancyRate.toFixed(1)}%) minus the selected baseline ({previous.rate.toFixed(1)}%) = {varianceLabel}.
                                 </p>
-                              ) : (
+                                {percentChange === null ? (
+                                  <p>
+                                    Relative change is not shown because the baseline rate is zero or too close to zero.
+                                  </p>
+                                ) : (
+                                  <p>
+                                    <span className="font-medium text-foreground">Relative change:</span> {varianceLabel} ÷ {previous.rate.toFixed(1)}% × 100 = {percentChange >= 0 ? "+" : ""}{percentChange.toFixed(1)}%.
+                                  </p>
+                                )}
                                 <p>
-                                  <span className="font-medium text-foreground">Relative change:</span> {varianceLabel} ÷ {previous.rate.toFixed(1)}% × 100 = {percentChange >= 0 ? "+" : ""}{percentChange.toFixed(1)}%.
+                                  The current rate follows the active <span className="font-medium text-foreground">Occupancy Rate</span> formula in KPI Builder; if none is active, it uses Occupied ÷ Total Beds × 100.
                                 </p>
-                              )}
-                              <p>
-                                The current rate follows the active <span className="font-medium text-foreground">Occupancy Rate</span> formula in KPI Builder; if none is active, it uses Occupied ÷ Total Beds × 100.
-                              </p>
+                              </div>
                             </div>
                           );
                         })() : null}
