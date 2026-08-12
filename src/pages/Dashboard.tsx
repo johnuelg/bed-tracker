@@ -955,6 +955,7 @@ const DashboardPage = () => {
                             percentChange === null
                               ? `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} pts`
                               : `${percentChange >= 0 ? "+" : ""}${percentChange.toFixed(1)}%`;
+                          const varianceLabel = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} percentage points`;
                           const prevLabel = previous.time
                             ? `${previous.date} ${previous.time}`
                             : previous.date;
@@ -976,6 +977,23 @@ const DashboardPage = () => {
                               <span className="text-muted-foreground">
                                 vs {prevLabel} ({previous.rate.toFixed(1)}%)
                               </span>
+                            </div>
+                            <div className="space-y-1 border-t border-border/60 pt-2 text-[11px] leading-relaxed text-muted-foreground">
+                              <p>
+                                <span className="font-medium text-foreground">Variance:</span> current rate ({occupancyRate.toFixed(1)}%) minus the selected baseline ({previous.rate.toFixed(1)}%) = {varianceLabel}.
+                              </p>
+                              {percentChange === null ? (
+                                <p>
+                                  Relative change is not shown because the baseline rate is zero or too close to zero.
+                                </p>
+                              ) : (
+                                <p>
+                                  <span className="font-medium text-foreground">Relative change:</span> {varianceLabel} ÷ {previous.rate.toFixed(1)}% × 100 = {percentChange >= 0 ? "+" : ""}{percentChange.toFixed(1)}%.
+                                </p>
+                              )}
+                              <p>
+                                The current rate follows the active <span className="font-medium text-foreground">Occupancy Rate</span> formula in KPI Builder; if none is active, it uses Occupied ÷ Total Beds × 100.
+                              </p>
                             </div>
                           );
                         })() : null}
