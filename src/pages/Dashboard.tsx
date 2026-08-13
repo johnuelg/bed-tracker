@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { CalendarIcon, RotateCcw, LayoutGrid, Table as TableIcon, ArrowDown, ArrowUp, Minus } from "lucide-react";
+import { CalendarIcon, RotateCcw, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -344,41 +344,6 @@ const DashboardPage = () => {
     }) ?? benchmarkLevels[benchmarkLevels.length - 1];
 
   const occupancyBenchmarkMatch = getOccupancyBenchmark(occupancyRate);
-
-  // Track the previously selected date+time so we can show a day-over-day
-  // (selection-over-selection) delta on the Occupancy Rate KPI card.
-  type PrevSelection = { date: string; time: string; rate: number };
-  const [previousSelection, setPreviousSelection] = useState<PrevSelection | null>(null);
-  const lastAppliedRef = useRef<PrevSelection | null>(null);
-
-  useEffect(() => {
-    if (filteredRows.length === 0) return;
-    const current: PrevSelection = {
-      date: rangeStartIso,
-      time: selectedTime || "",
-      rate: occupancyRate,
-    };
-    const last = lastAppliedRef.current;
-    if (!last) {
-      lastAppliedRef.current = current;
-      return;
-    }
-    if (last.date !== current.date || last.time !== current.time) {
-      setPreviousSelection(last);
-      lastAppliedRef.current = current;
-    } else {
-      // same selection, just refresh stored rate
-      lastAppliedRef.current = current;
-    }
-  }, [rangeStartIso, selectedTime, occupancyRate, filteredRows.length]);
-
-  const occupancyDelta = useMemo(() => {
-    if (!previousSelection) return null;
-    const diff = occupancyRate - previousSelection.rate;
-    const base = Math.abs(previousSelection.rate);
-    const percentChange = base > 0.0001 ? (diff / base) * 100 : null;
-    return { diff, percentChange, previous: previousSelection };
-  }, [occupancyRate, previousSelection]);
 
   const [departmentView, setDepartmentView] = useState<"cards" | "table">("cards");
 
@@ -839,7 +804,7 @@ const DashboardPage = () => {
             transition={{ delay: index * 0.08, duration: 0.25 }}
             className="h-full"
           >
-            <Card className="hospital-glass h-full">
+            <Card className="hospital-glass h-full min-h-[104px] sm:min-h-[132px]">
               {!hasEntries ? (
                 <>
                   <CardHeader className="p-3 pb-1 sm:p-6 sm:pb-2">
@@ -855,181 +820,31 @@ const DashboardPage = () => {
                   const iconKey = level?.icon ?? (level ? getDefaultIconForLabel(level.label, level.key) : undefined);
                   const StatusIcon = getStatusIconComponent(iconKey);
                   const accent = metric.accentColor ?? "hsl(var(--primary))";
-                  const clamped = Math.max(0, Math.min(100, occupancyRate));
-                  const progressId = `occupancy-progress-${index}`;
                   return (
-                    <div
-                      className="group relative h-full w-full overflow-hidden rounded-lg p-3 sm:p-5"
-                    >
-                      <style>{`
-                        @keyframes occupancy-shimmer-${index} {
-                          0% { transform: translateX(-100%); }
-                          100% { transform: translateX(200%); }
-                        }
-                        .${progressId}-track {
-                          position: relative;
-                          width: 100%;
-                          height: 10px;
-                          border-radius: 9999px;
-                          background-color: color-mix(in srgb, ${accent} 12%, hsl(var(--muted)));
-                          overflow: hidden;
-                          box-shadow: inset 0 1px 2px color-mix(in srgb, ${accent} 18%, transparent);
-                        }
-                        .${progressId}-fill {
-                          position: relative;
-                          height: 100%;
-                          border-radius: 9999px;
-                          background-image: linear-gradient(90deg,
-                            color-mix(in srgb, ${accent} 55%, white) 0%,
-                            ${accent} 100%);
-                          box-shadow: 0 0 12px color-mix(in srgb, ${accent} 40%, transparent);
-                          transition: width 0.5s ease;
-                          overflow: hidden;
-                        }
-                        .${progressId}-fill::after {
-                          content: "";
-                          position: absolute;
-                          inset: 0;
-                          background-image: linear-gradient(90deg,
-                            transparent 0%,
-                            rgba(255,255,255,0.45) 50%,
-                            transparent 100%);
-                          transform: translateX(-100%);
-                          animation: occupancy-shimmer-${index} 2s linear infinite;
-                        }
-                      `}</style>
-
-                      {StatusIcon ? (
-                        <StatusIcon
-                          size={64}
-                          aria-hidden
-                          className="pointer-events-none absolute right-2 top-2 h-10 w-10 transition-all duration-300 group-hover:rotate-[-4deg] sm:right-3 sm:top-3 sm:h-16 sm:w-16"
-                          style={{
-                            color: accent,
-                            opacity: 0.13,
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as SVGSVGElement).style.opacity = "0.22";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as SVGSVGElement).style.opacity = "0.13";
-                          }}
-                        />
-                      ) : null}
-
-                      <div className="relative flex h-full min-w-0 flex-col gap-2 pr-12 sm:gap-3 sm:pr-20">
+                    <>
+                      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0 p-3 pb-1 sm:p-6 sm:pb-2">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="w-fit cursor-help border-b border-dashed border-muted-foreground/50 text-xs text-muted-foreground sm:text-sm">
+                            <CardTitle className="w-fit cursor-help border-b border-dashed border-muted-foreground/50 text-xs text-muted-foreground sm:text-sm">
                               {metric.name}
-                            </p>
+                            </CardTitle>
                           </TooltipTrigger>
                           <TooltipContent side="bottom" align="start" className="max-w-xs space-y-2 p-3 text-xs leading-relaxed">
                             <p className="font-semibold text-popover-foreground">Occupancy calculation</p>
                             <p>Current rate: Occupied ÷ Total Beds × 100, using the active KPI Builder formula when available.</p>
-                            {occupancyDelta ? (() => {
-                              const { diff, percentChange, previous } = occupancyDelta;
-                              const baseline = previous.time ? `${previous.date} ${previous.time}` : previous.date;
-                              return (
-                                <>
-                                  <p><span className="font-medium text-popover-foreground">Baseline:</span> {baseline} at {previous.rate.toFixed(1)}%.</p>
-                                  <p><span className="font-medium text-popover-foreground">Variance:</span> {occupancyRate.toFixed(1)}% − {previous.rate.toFixed(1)}% = {diff >= 0 ? "+" : ""}{diff.toFixed(1)} percentage points.</p>
-                                  <p>
-                                    <span className="font-medium text-popover-foreground">Relative change:</span>{" "}
-                                    {percentChange === null
-                                      ? "Not shown when the baseline is zero or near zero."
-                                      : `(${diff >= 0 ? "+" : ""}${diff.toFixed(1)} ÷ ${previous.rate.toFixed(1)}) × 100 = ${percentChange >= 0 ? "+" : ""}${percentChange.toFixed(1)}%.`}
-                                  </p>
-                                </>
-                              );
-                            })() : (
-                              <p>Choose another dashboard date or time to establish a comparison baseline.</p>
-                            )}
                           </TooltipContent>
                         </Tooltip>
-                        <p
-                          className="text-2xl font-bold leading-tight sm:text-4xl"
-                          style={{ color: accent }}
-                        >
-                          {metric.value}
-                        </p>
-                        <div className="w-full">
-                          <div className={`${progressId}-track`}>
-                            <div
-                              className={`${progressId}-fill`}
-                              style={{ width: `${clamped}%` }}
-                            />
-                          </div>
-                        </div>
                         {metric.subtitle ? (
-                          <div
-                            className="flex items-center gap-1.5 text-xs font-medium"
-                            style={{ color: accent }}
-                          >
-                            {StatusIcon ? <StatusIcon size={14} aria-hidden /> : null}
+                          <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium" style={{ color: accent }}>
+                            {StatusIcon ? <StatusIcon size={12} aria-hidden /> : null}
                             <span>{metric.subtitle}</span>
-                          </div>
+                          </span>
                         ) : null}
-                        {occupancyDelta ? (() => {
-                          const { diff, percentChange, previous } = occupancyDelta;
-                          const isUp = diff > 0.05;
-                          const isDown = diff < -0.05;
-                          const trendColor = isUp
-                            ? "hsl(var(--destructive))"
-                            : isDown
-                            ? "#16a34a"
-                            : "hsl(var(--muted-foreground))";
-                          const TrendIcon = isUp ? ArrowUp : isDown ? ArrowDown : Minus;
-                          const pctLabel =
-                            percentChange === null
-                              ? `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} pts`
-                              : `${percentChange >= 0 ? "+" : ""}${percentChange.toFixed(1)}%`;
-                          const varianceLabel = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} percentage points`;
-                          const prevLabel = previous.time
-                            ? `${previous.date} ${previous.time}`
-                            : previous.date;
-                          return (
-                            <div
-                              className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-medium"
-                              title={`Compared to previous selection (${prevLabel}, ${previous.rate.toFixed(1)}%)`}
-                            >
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span
-                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5"
-                                  style={{
-                                    color: trendColor,
-                                    backgroundColor: `color-mix(in srgb, ${trendColor} 12%, transparent)`,
-                                  }}
-                                >
-                                  <TrendIcon className="h-3 w-3" aria-hidden />
-                                  <span>{pctLabel}</span>
-                                </span>
-                                <span className="text-muted-foreground">
-                                  vs {prevLabel} ({previous.rate.toFixed(1)}%)
-                                </span>
-                              </div>
-                              <div className="w-full space-y-1 border-t border-border/60 pt-2 leading-relaxed text-muted-foreground">
-                                <p>
-                                  <span className="font-medium text-foreground">Variance:</span> current rate ({occupancyRate.toFixed(1)}%) minus the selected baseline ({previous.rate.toFixed(1)}%) = {varianceLabel}.
-                                </p>
-                                {percentChange === null ? (
-                                  <p>
-                                    Relative change is not shown because the baseline rate is zero or too close to zero.
-                                  </p>
-                                ) : (
-                                  <p>
-                                    <span className="font-medium text-foreground">Relative change:</span> {varianceLabel} ÷ {previous.rate.toFixed(1)}% × 100 = {percentChange >= 0 ? "+" : ""}{percentChange.toFixed(1)}%.
-                                  </p>
-                                )}
-                                <p>
-                                  The current rate follows the active <span className="font-medium text-foreground">Occupancy Rate</span> formula in KPI Builder; if none is active, it uses Occupied ÷ Total Beds × 100.
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })() : null}
-                      </div>
-                    </div>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                        <p className="text-xl font-bold sm:text-3xl" style={{ color: accent }}>{metric.value}</p>
+                      </CardContent>
+                    </>
                   );
                 })()
               ) : (
