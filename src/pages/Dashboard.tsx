@@ -820,6 +820,7 @@ const DashboardPage = () => {
                   const iconKey = level?.icon ?? (level ? getDefaultIconForLabel(level.label, level.key) : undefined);
                   const StatusIcon = getStatusIconComponent(iconKey);
                   const accent = metric.accentColor ?? "hsl(var(--primary))";
+                  const clampedOccupancy = Math.max(0, Math.min(100, occupancyRate));
                   return (
                     <>
                       <CardHeader className="flex-row items-center justify-between gap-2 space-y-0 p-3 pb-1 sm:p-6 sm:pb-2">
@@ -841,8 +842,21 @@ const DashboardPage = () => {
                           </span>
                         ) : null}
                       </CardHeader>
-                      <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                      <CardContent className="space-y-2 p-3 pt-0 sm:space-y-3 sm:p-6 sm:pt-0">
                         <p className="text-xl font-bold sm:text-3xl" style={{ color: accent }}>{metric.value}</p>
+                        <div
+                          className="h-1.5 w-full overflow-hidden rounded-full bg-muted sm:h-2"
+                          role="progressbar"
+                          aria-label="Occupancy rate"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={Math.round(clampedOccupancy)}
+                        >
+                          <div
+                            className="h-full rounded-full transition-[width] duration-500"
+                            style={{ width: `${clampedOccupancy}%`, backgroundColor: accent }}
+                          />
+                        </div>
                       </CardContent>
                     </>
                   );
