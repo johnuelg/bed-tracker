@@ -206,6 +206,7 @@ const UsersPage = () => {
         <p className="text-sm text-muted-foreground">Admin-only user CRUD and secure role assignment.</p>
       </header>
 
+      {isAdmin ? (
       <Card>
         <CardHeader>
           <CardTitle>Roles Management</CardTitle>
@@ -259,7 +260,9 @@ const UsersPage = () => {
           </div>
         </CardContent>
       </Card>
+      ) : null}
 
+      {isAdmin ? (
       <Card>
         <CardHeader>
           <CardTitle>Create User</CardTitle>
@@ -298,7 +301,9 @@ const UsersPage = () => {
           </Button>
         </CardContent>
       </Card>
+      ) : null}
 
+      {isAdmin ? (
       <Card>
         <CardHeader>
           <CardTitle>Menu Visibility Settings</CardTitle>
@@ -319,6 +324,7 @@ const UsersPage = () => {
           </Button>
         </CardContent>
       </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -333,7 +339,7 @@ const UsersPage = () => {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {isAdmin ? <TableHead className="text-right">Actions</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -349,7 +355,7 @@ const UsersPage = () => {
                     <span className="capitalize">{row.role}</span>
                   </TableCell>
                   <TableCell>{row.is_active ? "Active" : "Inactive"}</TableCell>
-                  <TableCell className="text-right">
+                   {isAdmin ? <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                        {isAdmin ? (
                          <Button
@@ -396,7 +402,7 @@ const UsersPage = () => {
                          </Button>
                        ) : null}
                     </div>
-                  </TableCell>
+                   </TableCell> : null}
                 </TableRow>
                 );
               })}
