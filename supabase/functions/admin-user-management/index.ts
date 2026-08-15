@@ -20,9 +20,8 @@ const ActionSchema = z.discriminatedUnion("action", [
     role: z.string().trim().min(1).max(64),
   }),
   z.object({
-    action: z.literal("set_user_active"),
+    action: z.literal("delete_user"),
     user_id: z.string().uuid(),
-    is_active: z.boolean(),
   }),
   z.object({
     action: z.literal("list_users"),
@@ -173,16 +172,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (body.action === "set_user_active") {
-      const { error: profileError } = await adminClient
-        .from("profiles")
-        .update({ is_active: body.is_active })
-        .eq("user_id", body.user_id);
-      if (profileError) throw profileError;
+    if (body.action === "delete_user") {
+      if (body.user_id === caller.id) {
+        return new Response(JSON.stringify({ error: "You cannot delete your own primary admin account" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-      const { error: authError } = await adminClient.auth.admin.updateUserById(body.user_id, {
-        ban_duration: body.is_active ? "none" : "876000h",
-      });
+      const { data: adminProfiles, error: adminProfilesError } = await adminClient
+        .from("user_roles")
+        .select("user_id,created_at")
+        .eq("role", "admin")
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (adminProfilesError) throw adminProfilesError;
+
+      const primaryAdminId = adminProfiles?.[0]?.user_id;
+      if (primaryAdminId && body.user_id === primaryAdminId) {
+        return new Response(JSON.stringify({ error: "The primary admin account is protected and cannot be deleted" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: authError } = await adminClient.auth.admin.deleteUser(body.user_id);
       if (authError) throw authError;
 
       return new Response(JSON.stringify({ success: true }), {
