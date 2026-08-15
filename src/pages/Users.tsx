@@ -38,7 +38,6 @@ import {
   fetchUserRoles,
   saveNavVisibilitySettings,
   saveRoleCatalog,
-  setUserRole,
   updateUserByAdmin,
 } from "@/lib/supabase-api";
 import { NavVisibilitySettingsEditor } from "@/components/settings/nav-visibility-settings";
@@ -116,15 +115,6 @@ const UsersPage = () => {
       await queryClient.invalidateQueries({ queryKey: ["user_roles"] });
     },
     onError: (error) => toast({ title: "Create failed", description: (error as Error).message, variant: "destructive" }),
-  });
-
-  const roleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: AppRole }) => setUserRole(roles, userId, role),
-    onSuccess: async () => {
-      toast({ title: "Role updated" });
-      await queryClient.invalidateQueries({ queryKey: ["user_roles"] });
-    },
-    onError: (error) => toast({ title: "Role update failed", description: (error as Error).message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
