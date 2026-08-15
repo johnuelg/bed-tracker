@@ -25,12 +25,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowDown, ArrowUp, Pencil } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
   createUserByAdmin,
-  deactivateUserByAdmin,
+  deleteUserByAdmin,
   fetchNavVisibilitySettings,
   fetchProfiles,
   fetchRoleCatalog,
@@ -66,6 +66,7 @@ const UsersPage = () => {
   const [editForm, setEditForm] = useState({ email: "", display_name: "", password: "", role: "" as AppRole });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<null | { user_id: string; display_name: string; email: string }>(null);
 
   const isAdmin = roles.includes("admin");
 
@@ -126,13 +127,16 @@ const UsersPage = () => {
     onError: (error) => toast({ title: "Role update failed", description: (error as Error).message, variant: "destructive" }),
   });
 
-  const activeMutation = useMutation({
-    mutationFn: ({ userId, active }: { userId: string; active: boolean }) => deactivateUserByAdmin(roles, userId, active),
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => deleteUserByAdmin(roles, userId),
     onSuccess: async () => {
-      toast({ title: "User status updated" });
+      toast({ title: "User permanently deleted" });
+      setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      await queryClient.invalidateQueries({ queryKey: ["user_roles"] });
+      await queryClient.invalidateQueries({ queryKey: ["user_emails"] });
     },
-    onError: (error) => toast({ title: "Status update failed", description: (error as Error).message, variant: "destructive" }),
+    onError: (error) => toast({ title: "Delete failed", description: (error as Error).message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -352,29 +356,16 @@ const UsersPage = () => {
                     {row.email || <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell>
-                    <Select
-                      value={row.role}
-                      onValueChange={(value) => roleMutation.mutate({ userId: row.user_id, role: value })}
-                    >
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roleOptions.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {role}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <span className="capitalize">{row.role}</span>
                   </TableCell>
                   <TableCell>{row.is_active ? "Active" : "Inactive"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
+                       {isAdmin ? (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => {
                           setEditTarget({
                             user_id: row.user_id,
                             email: row.email,
@@ -388,30 +379,32 @@ const UsersPage = () => {
                             role: row.role,
                           });
                           setEditErrors({});
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={row.is_active ? "destructive" : "secondary"}
-                        disabled={isSelf}
-                        title={isSelf ? "You cannot deactivate your own account" : undefined}
-                        onClick={() => {
-                          if (isSelf) {
-                            toast({
-                              title: "Action blocked",
-                              description: "You cannot deactivate or delete your own account.",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          activeMutation.mutate({ userId: row.user_id, active: !row.is_active });
-                        }}
-                      >
-                        {row.is_active ? "Deactivate" : "Activate"}
-                      </Button>
+                           }}
+                         >
+                           <Pencil className="mr-1 h-3.5 w-3.5" />
+                           Edit
+                         </Button>
+                       ) : null}
+                       {isAdmin ? (
+                         <Button
+                           size="sm"
+                           variant="destructive"
+                           disabled={isSelf}
+                           title={isSelf ? "Your primary admin account cannot be deleted" : undefined}
+                           onClick={() => {
+                             if (!isSelf) {
+                               setDeleteTarget({
+                                 user_id: row.user_id,
+                                 display_name: row.display_name ?? "Unnamed user",
+                                 email: row.email,
+                               });
+                             }
+                           }}
+                         >
+                           <Trash2 className="mr-1 h-3.5 w-3.5" />
+                           Delete
+                         </Button>
+                       ) : null}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -540,6 +533,29 @@ const UsersPage = () => {
               }}
             >
               Yes, save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{deleteTarget?.display_name || deleteTarget?.email}</strong> and their sign-in account. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (deleteTarget) deleteMutation.mutate(deleteTarget.user_id);
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -363,10 +363,10 @@ export const createUserByAdmin = async (roles: AppRole[], payload: { email: stri
   return data;
 };
 
-export const deactivateUserByAdmin = async (roles: AppRole[], user_id: string, is_active: boolean) => {
-  requireRole(roles, ["admin"], "update users");
+export const deleteUserByAdmin = async (roles: AppRole[], user_id: string) => {
+  requireRole(roles, ["admin"], "delete users");
   const { data, error } = await supabase.functions.invoke("admin-user-management", {
-    body: { action: "set_user_active", user_id, is_active },
+    body: { action: "delete_user", user_id },
   });
   if (error) throw error;
   return data;
