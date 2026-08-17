@@ -25,7 +25,9 @@ function isJwtLike(value: string) {
 
 export function getValidatedSupabaseEnv(): ValidatedSupabaseEnv {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const supabaseAnonKey = (
+    import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  )?.trim();
   const environmentLabel = isRunningInPreviewHost() ? "preview/published" : "local";
 
   if (!supabaseUrl) {
@@ -42,13 +44,13 @@ export function getValidatedSupabaseEnv(): ValidatedSupabaseEnv {
 
   if (!supabaseAnonKey) {
     throw new Error(
-      `[Supabase config] Missing VITE_SUPABASE_PUBLISHABLE_KEY in ${environmentLabel} environment.`,
+      `[Supabase config] Missing VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY in ${environmentLabel} environment.`,
     );
   }
 
   if (!isJwtLike(supabaseAnonKey)) {
     throw new Error(
-      `[Supabase config] VITE_SUPABASE_PUBLISHABLE_KEY is not a valid anon key format in ${environmentLabel} environment.`,
+      `[Supabase config] Supabase anon key is not a valid JWT format in ${environmentLabel} environment.`,
     );
   }
 

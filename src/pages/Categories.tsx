@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   deleteDepartment,
   fetchDepartments,
@@ -60,9 +61,7 @@ const CategoriesPage = () => {
       }
       await saveDepartment(roles, { name: dept.name, code: dept.code });
       // Look up newly created department by code to capture id
-      const { data: created } = await import("@/integrations/supabase/client").then(({ supabase }) =>
-        supabase.from("departments").select("id").eq("code", dept.code).maybeSingle(),
-      );
+      const { data: created } = await supabase.from("departments").select("id").eq("code", dept.code).maybeSingle();
       if (created?.id) await persistTotalBeds(created.id, dept.total_beds);
     },
     onSuccess: async () => {
