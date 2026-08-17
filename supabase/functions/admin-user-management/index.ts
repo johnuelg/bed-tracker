@@ -1,10 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "https://esm.sh/zod@3.23.8";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 const getEnv = (primary: string, fallback?: string) => {
   const value = Deno.env.get(primary) ?? (fallback ? Deno.env.get(fallback) : undefined);
@@ -195,6 +191,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      const { error: roleDeleteError } = await adminClient.from("user_roles").delete().eq("user_id", body.user_id);
+      if (roleDeleteError) throw roleDeleteError;
+
+      const { error: profileDeleteError } = await adminClient.from("profiles").delete().eq("user_id", body.user_id);
+      if (profileDeleteError) throw profileDeleteError;
 
       const { error: authError } = await adminClient.auth.admin.deleteUser(body.user_id);
       if (authError) throw authError;

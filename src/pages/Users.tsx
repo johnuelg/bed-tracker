@@ -119,6 +119,29 @@ const UsersPage = () => {
 
   const deleteMutation = useMutation({
     mutationFn: (userId: string) => deleteUserByAdmin(roles, userId),
+    onMutate: async (userId) => {
+      await queryClient.cancelQueries({ queryKey: ["profiles"] });
+      await queryClient.cancelQueries({ queryKey: ["user_roles"] });
+      await queryClient.cancelQueries({ queryKey: ["user_emails"] });
+
+      const previousProfiles = queryClient.getQueryData<typeof profiles>(["profiles"]);
+      const previousRoleMap = queryClient.getQueryData<typeof roleMap>(["user_roles"]);
+      const previousEmailMap = queryClient.getQueryData<typeof emailMap>(["user_emails"]);
+
+      queryClient.setQueryData<typeof profiles>(["profiles"], (current = []) =>
+        current.filter((profile) => profile.user_id !== userId),
+      );
+      queryClient.setQueryData<typeof roleMap>(["user_roles"], (current = {}) => {
+        const { [userId]: _removed, ...remainingRoles } = current;
+        return remainingRoles;
+      });
+      queryClient.setQueryData<typeof emailMap>(["user_emails"], (current = {}) => {
+        const { [userId]: _removed, ...remainingEmails } = current;
+        return remainingEmails;
+      });
+
+      return { previousProfiles, previousRoleMap, previousEmailMap };
+    },
     onSuccess: async () => {
       toast({ title: "User permanently deleted" });
       setDeleteTarget(null);
@@ -126,7 +149,12 @@ const UsersPage = () => {
       await queryClient.invalidateQueries({ queryKey: ["user_roles"] });
       await queryClient.invalidateQueries({ queryKey: ["user_emails"] });
     },
-    onError: (error) => toast({ title: "Delete failed", description: (error as Error).message, variant: "destructive" }),
+    onError: (error, _userId, context) => {
+      if (context?.previousProfiles) queryClient.setQueryData(["profiles"], context.previousProfiles);
+      if (context?.previousRoleMap) queryClient.setQueryData(["user_roles"], context.previousRoleMap);
+      if (context?.previousEmailMap) queryClient.setQueryData(["user_emails"], context.previousEmailMap);
+      toast({ title: "Delete failed", description: (error as Error).message, variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
