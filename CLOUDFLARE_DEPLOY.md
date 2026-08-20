@@ -2,9 +2,11 @@
 
 This is a static Vite + React application. Configure it as a **Cloudflare Pages** project, not a Worker.
 
-- **Build command:** `npm run build`
+- **Build command:** `bun run build`
 - **Build output directory:** `dist`
-- **Deploy command:** leave empty so Pages publishes `dist`, or use `npx wrangler pages deploy dist`
+- **Deploy command:** leave empty when Cloudflare Pages builds from Git, or run the repository-pinned CLI with `bun run deploy` (`wrangler pages deploy dist`).
+
+Do not use `npx wrangler deploy`: it targets a Worker deployment rather than this static Pages application.
 
 In Cloudflare Pages project settings, define these build-time variables:
 
