@@ -8,9 +8,11 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "deploy": "npm run build && wrangler deploy",
+    "cf:dev": "npm run build && wrangler dev",
+    "cf:deploy": "npm run deploy",
     "lint": "eslint .",
     "preview": "vite preview",
-    "preview:cloudflare": "npm run build && wrangler dev",
+    "preview:cloudflare": "npm run cf:dev",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -88,7 +90,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.52.1",
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
