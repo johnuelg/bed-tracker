@@ -1,12 +1,13 @@
-# Cloudflare Pages deployment
+# Cloudflare Workers static assets deployment
 
-This is a static Vite + React application. Configure it as a **Cloudflare Pages** project, not a Worker.
+This is a static Vite + React application deployed with the repository-pinned Wrangler CLI and the `wrangler.jsonc` static-assets configuration.
 
-- **Build command:** `bun run build`
+- **Build command:** `npm run build` (or `bun run build` locally)
 - **Build output directory:** `dist`
-- **Deploy command:** leave empty when Cloudflare Pages builds from Git, or run the repository-pinned CLI with `bun run deploy` (`wrangler pages deploy dist`).
+- **Deploy command:** `npm run deploy` (builds, then runs the local `wrangler deploy`)
+- **Local Cloudflare preview:** `npm run preview:cloudflare`
 
-Do not use `npx wrangler deploy`: it targets a Worker deployment rather than this static Pages application.
+`wrangler.jsonc` defines `dist` as static assets and uses SPA not-found handling so React Router paths fall back to `index.html`.
 
 In Cloudflare Pages project settings, define these build-time variables:
 
