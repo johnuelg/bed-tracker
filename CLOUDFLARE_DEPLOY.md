@@ -7,7 +7,7 @@ This Vite + React application is deployed as one Cloudflare Worker: `worker/inde
 - **Deploy command:** `npm run deploy` (builds, then runs the local `wrangler deploy`)
 - **Local Cloudflare preview:** `npm run preview`
 
-`wrangler.jsonc` explicitly defines the Worker entry point and static assets, so Wrangler does not need to infer or modify the Vite configuration. `run_worker_first` keeps `/api/*` requests out of the SPA fallback; all other requests are fetched from the Worker asset binding. SPA not-found handling preserves React Router refreshes.
+`wrangler.jsonc` explicitly defines the Worker entry point and static assets, so Wrangler does not need to infer or modify the Vite configuration. `run_worker_first` keeps `/api/*` requests out of the SPA fallback; all other requests are fetched from the `ASSETS` Worker asset binding. SPA not-found handling preserves React Router refreshes.
 
 In Cloudflare Workers build settings, define these public build-time variables:
 
