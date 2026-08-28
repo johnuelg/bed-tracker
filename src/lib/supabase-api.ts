@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/api-guard";
 import { compressImageIfNeeded, MAX_UPLOAD_SIZE, validateFileType } from "@/lib/file-upload";
 import { getSaudiIsoDate } from "@/lib/date-time";
 import { evaluateSafeExpression } from "@/lib/math-eval";
-import { bedSubmissionSchema, formulaSchema } from "@/lib/validation";
+import { bedSubmissionSchema, formulaSchema, geminiSettingsSchema } from "@/lib/validation";
 import type {
   AppRole,
   AuditAction,
@@ -102,17 +102,16 @@ const DEFAULT_OCCUPANCY_BENCHMARK_SETTINGS: OccupancyBenchmarkSettings = {
 };
 
 const DEFAULT_LLM_SETTINGS: LlmSettings = {
-  provider: "lovable_gateway",
-  model: "google/gemini-3-flash-preview",
+  provider: "gemini_direct",
+  model: "gemini-2.5-flash",
 };
 
 const normalizeLlmSettings = (value: unknown): LlmSettings => {
   if (!value || typeof value !== "object") return { ...DEFAULT_LLM_SETTINGS };
   const source = value as Partial<Record<keyof LlmSettings, unknown>>;
-  const provider = source.provider === "gemini_direct" ? "gemini_direct" : "lovable_gateway";
   const modelCandidate = typeof source.model === "string" ? source.model.trim() : "";
-  const model = modelCandidate.length > 0 ? modelCandidate : DEFAULT_LLM_SETTINGS.model;
-  return { provider, model };
+  const model = /^gemini-[a-z0-9.-]+$/i.test(modelCandidate) ? modelCandidate : DEFAULT_LLM_SETTINGS.model;
+  return { provider: "gemini_direct", model };
 };
 
 const isMissingSchemaTable = (err: unknown) => {
@@ -536,7 +535,9 @@ export const saveLlmSettings = async (
   userId: string,
 ) => {
   requireRole(roles, ["admin"], "manage LLM settings");
-  const normalized = normalizeLlmSettings(settings);
+  const parsed = geminiSettingsSchema.safeParse(settings);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Invalid Gemini settings.");
+  const normalized = normalizeLlmSettings(parsed.data);
 
   const { error } = await db.from("app_settings").upsert(
     {
@@ -548,6 +549,20 @@ export const saveLlmSettings = async (
   );
 
   if (error) throw error;
+};
+
+export type GeminiConnectionStatus = {
+  configured: boolean;
+  status: "connected" | "not_configured" | "invalid" | "unavailable";
+  message: string;
+};
+
+export const testGeminiConnection = async (): Promise<GeminiConnectionStatus> => {
+  const { data, error } = await supabase.functions.invoke("bed-chat", {
+    body: { action: "test_gemini_connection" },
+  });
+  if (error) throw new Error(error.message || "Unable to reach the Gemini connection check.");
+  return data as GeminiConnectionStatus;
 };
 
 export type DepartmentTotalBedsMap = Record<string, number>;
