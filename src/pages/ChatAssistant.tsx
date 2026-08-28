@@ -318,7 +318,7 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
 
             {error ? (
               <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                Couldn't reach the assistant. Please try again.
+                {error.message || "Couldn't reach the assistant. Please try again."}
               </div>
             ) : null}
           </div>

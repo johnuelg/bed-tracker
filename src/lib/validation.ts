@@ -37,3 +37,13 @@ export const formulaSchema = z.object({
   expression: z.string().trim().min(1).max(200),
   variables: z.array(z.string()).default([]),
 });
+
+export const geminiSettingsSchema = z.object({
+  provider: z.literal("gemini_direct"),
+  model: z
+    .string()
+    .trim()
+    .min(1, "Enter a Gemini model name")
+    .max(120)
+    .regex(/^gemini-[a-z0-9.-]+$/i, "Use a native Gemini model name, such as gemini-2.5-flash"),
+});
