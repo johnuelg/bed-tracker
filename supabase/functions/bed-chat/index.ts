@@ -1,7 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamText, convertToModelMessages, type UIMessage } from "npm:ai@6";
 import { google } from "npm:@ai-sdk/google@2";
-import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const responseCorsHeaders = {
@@ -47,39 +46,36 @@ type Submission = {
 };
 
 type Department = { id: string; name: string; is_active: boolean };
-type LlmProvider = "lovable_gateway" | "gemini_direct";
-type LlmSettings = { provider: LlmProvider; model: string };
-
-const DEFAULT_GATEWAY_MODEL = "google/gemini-3-flash-preview";
-const DEFAULT_GEMINI_DIRECT_MODEL = "gemini-2.5-flash";
-
-const DEFAULT_LLM_SETTINGS: LlmSettings = {
-  provider: "lovable_gateway",
-  model: DEFAULT_GATEWAY_MODEL,
-};
-
-const isGatewayStyleModel = (model: string) => model.includes("/");
+type LlmSettings = { provider: "gemini_direct"; model: string };
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 const normalizeLlmSettings = (value: unknown): LlmSettings => {
-  if (!value || typeof value !== "object") return DEFAULT_LLM_SETTINGS;
+  if (!value || typeof value !== "object") return { provider: "gemini_direct", model: DEFAULT_GEMINI_MODEL };
   const source = value as Partial<Record<keyof LlmSettings, unknown>>;
-  const provider = source.provider === "gemini_direct" ? "gemini_direct" : "lovable_gateway";
   const modelCandidate = typeof source.model === "string" ? source.model.trim() : "";
-
-  if (provider === "gemini_direct") {
-    // Gemini direct expects native Gemini model IDs (e.g., gemini-2.5-flash),
-    // not gateway-style provider/model IDs such as google/gemini-3-flash-preview.
-    const directModel =
-      modelCandidate.length === 0 || isGatewayStyleModel(modelCandidate)
-        ? DEFAULT_GEMINI_DIRECT_MODEL
-        : modelCandidate;
-    return { provider, model: directModel };
-  }
-
   return {
-    provider,
-    model: modelCandidate.length > 0 ? modelCandidate : DEFAULT_GATEWAY_MODEL,
+    provider: "gemini_direct",
+    model: /^gemini-[a-z0-9.-]+$/i.test(modelCandidate) ? modelCandidate : DEFAULT_GEMINI_MODEL,
   };
+};
+
+const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...responseCorsHeaders, "Content-Type": "application/json" },
+  });
+
+const getGeminiApiKey = () => Deno.env.get("GEMINI_API_KEY")?.trim() || null;
+
+const getGeminiError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : "Gemini request failed.";
+  if (/api key|api_key|unauthenticated|permission denied|403|401/i.test(message)) {
+    return "The saved Gemini API key is invalid or cannot access the selected model. Replace it in secure server-side secrets and test again.";
+  }
+  if (/not found|unsupported model|model.*not.*found/i.test(message)) {
+    return "The selected Gemini model is unavailable. Choose an enabled native Gemini model and try again.";
+  }
+  return "Gemini is temporarily unavailable. Please try again shortly.";
 };
 
 const fetchAllBedSubmissions = async (supabase: ReturnType<typeof createClient>) => {
@@ -142,6 +138,26 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+    if (body?.action === "test_gemini_connection") {
+      const geminiApiKey = getGeminiApiKey();
+      if (!geminiApiKey) {
+        return jsonResponse({
+          configured: false,
+          status: "not_configured",
+          message: "No Gemini API key is configured. Add GEMINI_API_KEY in secure server-side secrets.",
+        }, 400);
+      }
+
+      try {
+        const model = google(DEFAULT_GEMINI_MODEL, { apiKey: geminiApiKey });
+        const probe = streamText({ model, prompt: "Reply with OK." });
+        await probe.text;
+        return jsonResponse({ configured: true, status: "connected", message: "Gemini API key is connected and ready." });
+      } catch (error) {
+        return jsonResponse({ configured: true, status: "invalid", message: getGeminiError(error) }, 400);
+      }
+    }
+
     const messages = Array.isArray(body?.messages) ? (body.messages as UIMessage[]) : null;
     if (!messages) {
       return new Response(JSON.stringify({ error: "Invalid request body: messages array is required." }), {
@@ -293,29 +309,12 @@ TABLE-SCOPE RULE:
 SNAPSHOT JSON:
 ${JSON.stringify(context)}`;
 
+    const geminiApiKey = getGeminiApiKey();
+    if (!geminiApiKey) {
+      return jsonResponse({ error: "Gemini is not configured. An administrator must add GEMINI_API_KEY in secure server-side secrets." }, 503);
+    }
     const llmSettings = normalizeLlmSettings(llmSettingsRow?.setting_value);
-    const model = (() => {
-      if (llmSettings.provider === "gemini_direct") {
-        const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-        if (!geminiApiKey) {
-          throw new Error("GEMINI_API_KEY is missing. Add it in project secrets to use Gemini direct mode.");
-        }
-        return google(llmSettings.model || "gemini-1.5-flash", {
-          apiKey: geminiApiKey,
-        });
-      }
-
-      const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableApiKey) {
-        throw new Error("LOVABLE_API_KEY is missing. Configure project secret or switch provider to Gemini direct.");
-      }
-      const gateway = createOpenAICompatible({
-        name: "lovable-ai-gateway",
-        baseURL: "https://ai.gateway.lovable.dev/v1",
-        headers: { "Lovable-API-Key": lovableApiKey },
-      });
-      return gateway(llmSettings.model || "google/gemini-3-flash-preview");
-    })();
+    const model = google(llmSettings.model, { apiKey: geminiApiKey });
 
     const result = streamText({
       model,
@@ -326,9 +325,6 @@ ${JSON.stringify(context)}`;
     return result.toUIMessageStreamResponse({ headers: responseCorsHeaders });
   } catch (err) {
     console.error("bed-chat error", err);
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...responseCorsHeaders, "Content-Type": "application/json" } },
-    );
+    return jsonResponse({ error: getGeminiError(err) }, 503);
   }
 });
