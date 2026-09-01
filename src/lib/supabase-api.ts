@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/api-guard";
 import { compressImageIfNeeded, MAX_UPLOAD_SIZE, validateFileType } from "@/lib/file-upload";
 import { getSaudiIsoDate } from "@/lib/date-time";
 import { evaluateSafeExpression } from "@/lib/math-eval";
-import { bedSubmissionSchema, formulaSchema, geminiSettingsSchema } from "@/lib/validation";
+import { bedSubmissionSchema, formulaSchema, llmSettingsSchema } from "@/lib/validation";
 import type {
   AppRole,
   AuditAction,
@@ -535,8 +535,8 @@ export const saveLlmSettings = async (
   userId: string,
 ) => {
   requireRole(roles, ["admin"], "manage LLM settings");
-  const parsed = geminiSettingsSchema.safeParse(settings);
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Invalid Gemini settings.");
+  const parsed = llmSettingsSchema.safeParse(settings);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Invalid AI settings.");
   const normalized = normalizeLlmSettings(parsed.data);
 
   const { error } = await db.from("app_settings").upsert(

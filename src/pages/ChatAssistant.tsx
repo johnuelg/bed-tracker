@@ -14,6 +14,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatSaudiDateTime } from "@/lib/date-time";
+import { DEFAULT_ORCA_MODEL, requestOrcaChat } from "@/lib/orca-router";
+import type { LlmProvider } from "@/types/hospital";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ChatThread = {
   id: string;
@@ -23,6 +26,7 @@ type ChatThread = {
 };
 
 const STORAGE_KEY = "chat_assistant_threads_v1";
+const PROVIDER_STORAGE_KEY = "chat_assistant_provider_v1";
 const { supabaseUrl, supabaseAnonKey } = getValidatedSupabaseEnv();
 const FUNCTION_URL = `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/bed-chat`;
 
@@ -127,6 +131,9 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
   const [threads, setThreads] = useState<ChatThread[]>(() => loadThreads());
   const [input, setInput] = useState("");
   const [mobileThreadsOpen, setMobileThreadsOpen] = useState(false);
+  const [provider, setProvider] = useState<LlmProvider>(() =>
+    window.localStorage.getItem(PROVIDER_STORAGE_KEY) === "orca_router" ? "orca_router" : "gemini_direct",
+  );
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const activeThread = threads.find((t) => t.id === threadId);
@@ -181,9 +188,23 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
 
   const isBusy = status === "submitted" || status === "streaming";
 
+  const selectProvider = (next: LlmProvider) => {
+    window.localStorage.setItem(PROVIDER_STORAGE_KEY, next);
+    setProvider(next);
+  };
+
   const handleSend = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isBusy) return;
+    if (provider === "orca_router") {
+      const userMessage: UIMessage = { id: newId(), role: "user", parts: [{ type: "text", text: trimmed }] };
+      setMessages([...messages, userMessage]);
+      setInput("");
+      void requestOrcaChat({ messages: [...messages, userMessage], model: DEFAULT_ORCA_MODEL })
+        .then((content) => setMessages((current) => [...current, { id: newId(), role: "assistant", parts: [{ type: "text", text: content }] }]))
+        .catch((requestError: Error) => setMessages((current) => [...current, { id: newId(), role: "assistant", parts: [{ type: "text", text: `**OrcaRouter error:** ${requestError.message}\n\nSwitch to Google Gemini and try again.` }] }]));
+      return;
+    }
     void sendMessage({ text: trimmed });
     setInput("");
   };
@@ -262,6 +283,15 @@ const ChatAssistantInner = ({ threadId }: { threadId: string }) => {
             <p className="text-xs text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden sm:[-webkit-line-clamp:1]">
               Ask about occupied, vacant, or closed beds, room availability, occupancy rate, and the latest updates. Times shown are Saudi Arabia local time.
             </p>
+          </div>
+          <div className="hidden w-52 shrink-0 sm:block">
+            <Select value={provider} onValueChange={(value) => selectProvider(value as LlmProvider)}>
+              <SelectTrigger aria-label="AI provider"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini_direct">Google Gemini · gemini-2.5-flash</SelectItem>
+                <SelectItem value="orca_router">OrcaRouter · Llama 3.1</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-2 md:hidden">
             <Sheet open={mobileThreadsOpen} onOpenChange={setMobileThreadsOpen}>
