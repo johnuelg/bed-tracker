@@ -38,12 +38,16 @@ export const formulaSchema = z.object({
   variables: z.array(z.string()).default([]),
 });
 
-export const geminiSettingsSchema = z.object({
-  provider: z.literal("gemini_direct"),
+export const llmSettingsSchema = z.object({
+  provider: z.enum(["gemini_direct", "orca_router"]),
   model: z
     .string()
     .trim()
-    .min(1, "Enter a Gemini model name")
+    .min(1, "Enter a model name")
     .max(120)
-    .regex(/^gemini-[a-z0-9.-]+$/i, "Use a native Gemini model name, such as gemini-2.5-flash"),
+    .regex(/^[a-z0-9._:/-]+$/i, "Use a valid provider model identifier"),
+}).superRefine((value, ctx) => {
+  if (value.provider === "gemini_direct" && !/^gemini-[a-z0-9.-]+$/i.test(value.model)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["model"], message: "Use a native Gemini model name, such as gemini-2.5-flash" });
+  }
 });
