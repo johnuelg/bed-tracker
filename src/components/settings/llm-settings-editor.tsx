@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { fetchLlmSettings, saveLlmSettings, type GeminiConnectionStatus } from "@/lib/supabase-api";
+import { fetchLlmSettings, saveLlmSettings, testGeminiConnection, type GeminiConnectionStatus } from "@/lib/supabase-api";
 import type { LlmSettings } from "@/types/hospital";
 import { CheckCircle2, CircleAlert, Loader2, PlugZap } from "lucide-react";
 
@@ -55,7 +55,6 @@ export const LlmSettingsEditor = () => {
   const connectionMutation = useMutation({
     mutationFn: async (): Promise<GeminiConnectionStatus> => {
       if (draft.provider === "gemini_direct") {
-        const { testGeminiConnection } = await import("@/lib/supabase-api");
         return testGeminiConnection();
       }
       const response = await fetch("/api/orca/chat", {
