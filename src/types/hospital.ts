@@ -113,7 +113,7 @@ export type OccupancyBenchmarkSettings = {
   levels: OccupancyBenchmarkLevel[];
 };
 
-export type LlmProvider = "gemini_direct";
+export type LlmProvider = "gemini_direct" | "orca_router";
 
 export type LlmSettings = {
   provider: LlmProvider;

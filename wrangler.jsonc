@@ -11,5 +11,8 @@
   },
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "ORCA_ROUTER_BASE_URL": "https://orcarouter.com/api/v1"
   }
 }
