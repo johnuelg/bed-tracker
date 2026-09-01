@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { fetchLlmSettings, saveLlmSettings, testGeminiConnection, type GeminiConnectionStatus } from "@/lib/supabase-api";
+import { fetchLlmSettings, saveLlmSettings, type GeminiConnectionStatus } from "@/lib/supabase-api";
 import type { LlmSettings } from "@/types/hospital";
 import { CheckCircle2, CircleAlert, Loader2, PlugZap } from "lucide-react";
 
@@ -53,11 +53,32 @@ export const LlmSettingsEditor = () => {
   });
 
   const connectionMutation = useMutation({
-    mutationFn: testGeminiConnection,
+    mutationFn: async (): Promise<GeminiConnectionStatus> => {
+      if (draft.provider === "gemini_direct") {
+        const { testGeminiConnection } = await import("@/lib/supabase-api");
+        return testGeminiConnection();
+      }
+      const response = await fetch("/api/orca/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: draft.model,
+          max_tokens: 1,
+          temperature: 0,
+          messages: [{ role: "user", content: "Reply with OK." }],
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: { message?: string } | string };
+        const message = typeof payload.error === "string" ? payload.error : payload.error?.message;
+        throw new Error(message || "Unable to reach OrcaRouter.");
+      }
+      return { configured: true, status: "connected", message: "OrcaRouter is connected and ready." };
+    },
     onSuccess: (result) => {
       setConnection(result);
       toast({
-        title: result.status === "connected" ? "Gemini connected" : "Gemini needs attention",
+        title: result.status === "connected" ? "Provider connected" : "Provider needs attention",
         description: result.message,
         variant: result.status === "connected" ? "default" : "destructive",
       });
