@@ -24,7 +24,7 @@ api.post("/api/orca/chat", async (context) => {
     return context.json({ error: "Messages and model are required." }, 400);
   }
 
-  const baseUrl = (context.env.ORCA_ROUTER_BASE_URL || "https://orcarouter.com/api/v1").replace(/\/+$/, "");
+  const baseUrl = (context.env.ORCA_ROUTER_BASE_URL || "https://api.orcarouter.ai/v1").replace(/\/+$/, "");
   try {
     const upstream = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
