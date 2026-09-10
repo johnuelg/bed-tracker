@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamText, convertToModelMessages, type UIMessage } from "npm:ai@6";
-import { google } from "npm:@ai-sdk/google@2";
+import { createGoogleGenerativeAI } from "npm:@ai-sdk/google@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const responseCorsHeaders = {
@@ -66,6 +66,9 @@ const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
   });
 
 const getGeminiApiKey = () => Deno.env.get("GEMINI_API_KEY")?.trim() || null;
+
+const createGeminiModel = (modelId: string, apiKey: string) =>
+  createGoogleGenerativeAI({ apiKey })(modelId);
 
 const getGeminiError = (error: unknown) => {
   const message = error instanceof Error ? error.message : "Gemini request failed.";
@@ -149,7 +152,7 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const model = google(DEFAULT_GEMINI_MODEL, { apiKey: geminiApiKey });
+        const model = createGeminiModel(DEFAULT_GEMINI_MODEL, geminiApiKey);
         const probe = streamText({ model, prompt: "Reply with OK." });
         await probe.text;
         return jsonResponse({ configured: true, status: "connected", message: "Gemini API key is connected and ready." });
@@ -314,7 +317,7 @@ ${JSON.stringify(context)}`;
       return jsonResponse({ error: "Gemini is not configured. An administrator must add GEMINI_API_KEY in secure server-side secrets." }, 503);
     }
     const llmSettings = normalizeLlmSettings(llmSettingsRow?.setting_value);
-    const model = google(llmSettings.model, { apiKey: geminiApiKey });
+    const model = createGeminiModel(llmSettings.model, geminiApiKey);
 
     const result = streamText({
       model,
